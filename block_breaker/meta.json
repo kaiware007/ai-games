@@ -1,0 +1,8 @@
+{
+  "id": "block_breaker",
+  "title": "Block Breaker",
+  "description": "マウスとキーボードで操作するシンプルブロック崩しゲーム！矢印キーまたはA/Dキーでパドルを移動、スペースキーでボールを発射！",
+  "created_at": "2026-04-27T07:27:08.755198",
+  "engine": "godot4",
+  "thumbnail": ""
+}
