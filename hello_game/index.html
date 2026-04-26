@@ -93,24 +93,7 @@ body {
 		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
 <link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
 
-	<script>
-/* Cross-Origin Isolation: register service worker and reload once to apply headers */
-(function () {
-  if (!("serviceWorker" in navigator)) return;
-  navigator.serviceWorker.register("./coi-serviceworker.js").then(function (reg) {
-    var shouldReload = !navigator.serviceWorker.controller;
-    if (reg.installing) {
-      reg.installing.addEventListener("statechange", function (e) {
-        if (e.target.state === "activated" && shouldReload) {
-          window.location.reload();
-        }
-      });
-    } else if (shouldReload && reg.active) {
-      window.location.reload();
-    }
-  });
-})();
-</script>
+	
 </head>
 	<body>
 		<canvas id="canvas">
@@ -233,6 +216,90 @@ const engine = new Engine(GODOT_CONFIG);
 	}
 }());
 		</script>
-	</body>
+	<style>
+#godot-touch-controls {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 120px;
+  z-index: 9999;
+  pointer-events: none;
+  user-select: none;
+}
+#godot-touch-controls button {
+  position: absolute;
+  bottom: 16px;
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.15);
+  color: white;
+  font-size: 28px;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+#godot-touch-controls button:active { background: rgba(255,255,255,0.35); }
+#gtc-left  { left: 20px; }
+#gtc-right { left: 120px; }
+#gtc-action { right: 20px; background: rgba(100,180,255,0.25); font-size: 20px; }
+</style>
+<div id="godot-touch-controls">
+  <button id="gtc-left">&#9664;</button>
+  <button id="gtc-right">&#9654;</button>
+  <button id="gtc-action">FIRE</button>
+</div>
+<script>
+(function () {
+  /* タッチデバイスでのみ表示 */
+  if (!('ontouchstart' in window) && !navigator.maxTouchPoints) return;
+  document.getElementById('godot-touch-controls').style.display = 'block';
+
+  function fireKey(key, code, down) {
+    var type = down ? 'keydown' : 'keyup';
+    var ev = new KeyboardEvent(type, {
+      key: key, code: code,
+      bubbles: true, cancelable: true,
+      keyCode: key === ' ' ? 32 : key === 'ArrowLeft' ? 37 : key === 'ArrowRight' ? 39 : 0,
+    });
+    document.dispatchEvent(ev);
+    /* Godot のキャンバスにもフォーカスを確保 */
+    var c = document.getElementById('canvas');
+    if (c) c.dispatchEvent(ev);
+  }
+
+  function bindBtn(id, key, code) {
+    var btn = document.getElementById(id);
+    if (!btn) return;
+    btn.addEventListener('touchstart', function(e) {
+      e.preventDefault(); fireKey(key, code, true);
+    }, {passive: false});
+    btn.addEventListener('touchend', function(e) {
+      e.preventDefault(); fireKey(key, code, false);
+    }, {passive: false});
+    btn.addEventListener('touchcancel', function(e) {
+      fireKey(key, code, false);
+    });
+  }
+
+  bindBtn('gtc-left',   'ArrowLeft',  'ArrowLeft');
+  bindBtn('gtc-right',  'ArrowRight', 'ArrowRight');
+  bindBtn('gtc-action', ' ',          'Space');
+
+  /* 画面タップでもスペースを発火（ランチャー系ゲーム対応） */
+  var canvas = document.getElementById('canvas');
+  if (canvas) {
+    canvas.addEventListener('touchstart', function(e) {
+      /* ボタン上のタップは除外 */
+      if (e.target !== canvas) return;
+      e.preventDefault();
+      fireKey(' ', 'Space', true);
+      setTimeout(function() { fireKey(' ', 'Space', false); }, 80);
+    }, {passive: false});
+  }
+})();
+</script>
+</body>
 </html>
 
