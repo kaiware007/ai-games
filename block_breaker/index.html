@@ -93,7 +93,25 @@ body {
 		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
 <link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
 
-	</head>
+	<script>
+/* Cross-Origin Isolation: register service worker and reload once to apply headers */
+(function () {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.register("./coi-serviceworker.js").then(function (reg) {
+    var shouldReload = !navigator.serviceWorker.controller;
+    if (reg.installing) {
+      reg.installing.addEventListener("statechange", function (e) {
+        if (e.target.state === "activated" && shouldReload) {
+          window.location.reload();
+        }
+      });
+    } else if (shouldReload && reg.active) {
+      window.location.reload();
+    }
+  });
+})();
+</script>
+</head>
 	<body>
 		<canvas id="canvas">
 			Your browser does not support the canvas tag.
