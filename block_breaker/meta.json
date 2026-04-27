@@ -2,7 +2,7 @@
   "id": "block_breaker",
   "title": "Block Breaker",
   "description": "タイトル画面・ステージ制・爆発エフェクト付きブロック崩し。ドラッグでパドル操作、タップで発射。",
-  "created_at": "2026-04-27T09:38:35.183043",
+  "created_at": "2026-04-27T20:29:55.965949",
   "engine": "godot4",
   "thumbnail": ""
 }
