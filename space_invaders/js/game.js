@@ -16,7 +16,7 @@ const CONFIG = {
 
 export class Game {
     constructor() {
-        this.canvas = document.getElementById('gameCanvas');
+        this.canvas = document.getElementById('c');
         this.ctx = this.canvas.getContext('2d');
         this.canvas.width = CONFIG.canvasWidth;
         this.canvas.height = CONFIG.canvasHeight;
