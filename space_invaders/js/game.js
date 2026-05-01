@@ -57,9 +57,8 @@ export class Game {
             }
         });
 
-        // タッチ（リスタート）
-        this.canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
+        // タッチ・クリック共通ハンドラ（ブラウザ差異を吸収）
+        const handleTap = () => {
             if (this.state === 'title') {
                 this.startGame();
             } else if (this.state === 'gameover' || this.state === 'clear') {
@@ -70,7 +69,15 @@ export class Game {
                     this.resetGame();
                 }
             }
+        };
+
+        this.canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleTap();
         }, { passive: false });
+
+        // touchstart で preventDefault した場合でも click が来るブラウザへの対応
+        this.canvas.addEventListener('click', handleTap);
     }
 
     resetGame() {
