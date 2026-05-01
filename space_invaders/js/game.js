@@ -1,9 +1,9 @@
 // メインゲームクラス
-import { InputManager } from './input.js';
-import { Player } from './player.js';
-import { EnemyManager } from './enemy.js';
-import { BulletManager } from './bullet.js';
-import { HUD } from './hud.js';
+import { InputManager } from './input.js?v=1777653107';
+import { Player } from './player.js?v=1777653107';
+import { EnemyManager } from './enemy.js?v=1777653107';
+import { BulletManager } from './bullet.js?v=1777653107';
+import { HUD } from './hud.js?v=1777653107';
 
 const CONFIG = {
     canvasWidth: 480,
@@ -71,13 +71,8 @@ export class Game {
             }
         };
 
-        this.canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            handleTap();
-        }, { passive: false });
-
-        // touchstart で preventDefault した場合でも click が来るブラウザへの対応
-        this.canvas.addEventListener('click', handleTap);
+        // canvas/document どちらをタップしても反応するよう document レベルで受け取る
+        document.addEventListener('pointerdown', () => handleTap());
     }
 
     resetGame() {
