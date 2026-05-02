@@ -1,8 +1,8 @@
-import { InputManager } from './input.js?v=1777703179';
-import { Grid } from './grid.js?v=1777703179';
-import { MoleManager, MOLE_TYPES } from './mole_manager.js?v=1777703179';
-import { HitEffect } from './hit_effect.js?v=1777703179';
-import { HUD } from './hud.js?v=1777703179';
+import { InputManager } from './input.js?v=1777705331';
+import { Grid } from './grid.js?v=1777705331';
+import { MoleManager, MOLE_TYPES } from './mole_manager.js?v=1777705331';
+import { HitEffect } from './hit_effect.js?v=1777705331';
+import { HUD } from './hud.js?v=1777705331';
 
 export class Game {
   constructor(canvas) {

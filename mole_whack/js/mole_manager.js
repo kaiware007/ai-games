@@ -42,6 +42,33 @@ export class MoleManager {
     this.ultraRareSlots.sort((a, b) => a - b);
   }
 
+  // 現在時間に応じた出現間隔を計算
+  getSpawnInterval() {
+    const gt = this.gameTime;
+    if (gt < 20) {
+      // 前半: ゆったり 1.2〜1.8秒
+      return 1.2 + Math.random() * 0.6;
+    } else if (gt < 40) {
+      // 中盤: やや速く 0.8〜1.4秒
+      return 0.8 + Math.random() * 0.6;
+    } else {
+      // 後半: 激速 0.5〜1.0秒
+      return 0.5 + Math.random() * 0.5;
+    }
+  }
+
+  // 現在時間に応じた同時出現上限を計算
+  getMaxActiveMoles() {
+    const gt = this.gameTime;
+    if (gt < 20) {
+      return 2; // 前半: 最大2匹
+    } else if (gt < 40) {
+      return 3; // 中盤: 最大3匹
+    } else {
+      return 5; // 後半: 最大5匹
+    }
+  }
+
   update(dt) {
     this.gameTime += dt;
 
@@ -65,8 +92,12 @@ export class MoleManager {
     // 通常モグラの出現
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
-      this.spawnNormalMole();
-      this.spawnTimer = 0.8 + Math.random() * 0.7; // 0.8〜1.5秒
+      // 同時出現上限をチェック
+      const maxActive = this.getMaxActiveMoles();
+      if (this.activeMoles.length < maxActive) {
+        this.spawnNormalMole();
+      }
+      this.spawnTimer = this.getSpawnInterval();
     }
   }
 
