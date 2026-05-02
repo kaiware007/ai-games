@@ -1,342 +1,250 @@
-import { InputManager } from './input.js?v=1777717899';
-import { Grid } from './grid.js?v=1777717899';
-import { MoleManager } from './mole_manager.js?v=1777717899';
-import { HitEffect } from './hit_effect.js?v=1777717899';
-import { HUD } from './hud.js?v=1777717899';
+import { InputManager } from './input.js?v=1777724670';
+import { Grid } from './grid.js?v=1777724670';
+import { HUD } from './hud.js?v=1777724670';
 
 export class Game {
-  constructor(canvas) {
-    this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
-    this.canvas.width = 600;
-    this.canvas.height = 720;
+    constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
 
-    this.input = new InputManager(canvas);
-    this.grid = new Grid(this.canvas.width, this.canvas.height);
-    this.moleManager = new MoleManager(this.grid, 60, 2);
-    this.hud = new HUD(this.canvas.height);
+        // キャンバスサイズ設定
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
 
-    this.state = 'title'; // title, playing, gameover
-    this.score = 0;
-    this.timeLeft = 60;
-    this.totalHits = 0;
-    this.effects = [];
+        // 画像読み込み
+        this.moleImage = new Image();
+        this.moleImage.src = 'assets/mole.png';
 
-    // クリックイベント
-    canvas.addEventListener('pointerdown', (e) => {
-      const pos = this.getClickPos(e.clientX, e.clientY);
-      if (this.state === 'title') {
-        this.startGame();
-      } else if (this.state === 'playing') {
-        this.handleClick(pos.x, pos.y);
-      } else if (this.state === 'gameover') {
-        this.startGame();
-      }
-    });
-  }
+        // コンポーネント
+        this.input = new InputManager(this.canvas);
+        this.hud = new HUD(this.canvasWidth, this.canvasHeight);
 
-  init() {
-    this.setState('title');
-  }
+        // ゲーム状態
+        this.state = 'title'; // title, countdown, playing, gameover
+        this.score = 0;
+        this.combo = 0;
+        this.maxCombo = 0;
+        this.timeLeft = 30;
+        this.countdownValue = 3;
+        this.countdownTimer = 0;
+        this.gameOverWait = 0; // ゲームオーバー後のタップ無視時間
 
-  setState(state) {
-    this.state = state;
-  }
+        // モグラ出現タイマー
+        this.spawnTimer = 0;
+        this.spawnInterval = 1.0; // 初期出現間隔
 
-  startGame() {
-    this.score = 0;
-    this.timeLeft = 60;
-    this.totalHits = 0;
-    this.effects = [];
-    this.moleManager.reset();
-    this.setState('playing');
-  }
+        // グリッド（画像読み込み後に作成）
+        this.grid = null;
 
-  getClickPos(clientX, clientY) {
-    const rect = this.canvas.getBoundingClientRect();
-    const scaleX = this.canvas.width / rect.width;
-    const scaleY = this.canvas.height / rect.height;
-    return {
-      x: (clientX - rect.left) * scaleX,
-      y: (clientY - rect.top) * scaleY
-    };
-  }
+        // ゲームループ開始
+        this.lastTime = performance.now();
+        this.gameLoop();
 
-  update(dt) {
-    if (this.state !== 'playing') return;
-
-    // タイマー
-    this.timeLeft -= dt;
-    if (this.timeLeft <= 0) {
-      this.timeLeft = 0;
-      this.setState('gameover');
-      return;
+        // 画像読み込み完了後にグリッド作成
+        this.moleImage.onload = () => {
+            this.grid = new Grid(this.canvasWidth, this.canvasHeight, this.moleImage);
+        };
+        // 画像読み込み失敗時はフォールバックでグリッド作成
+        this.moleImage.onerror = () => {
+            this.grid = new Grid(this.canvasWidth, this.canvasHeight, null);
+        };
     }
 
-    // モグラ更新
-    this.moleManager.update(dt);
+    resize() {
+        this.canvasWidth = window.innerWidth;
+        this.canvasHeight = window.innerHeight;
+        this.canvas.width = this.canvasWidth;
+        this.canvas.height = this.canvasHeight;
 
-    // エフェクト更新
-    for (let i = this.effects.length - 1; i >= 0; i--) {
-      this.effects[i].update(dt);
-      if (!this.effects[i].isAlive()) {
-        this.effects.splice(i, 1);
-      }
-    }
-  }
+        // HUDサイズ更新
+        if (this.hud) {
+            this.hud.canvasWidth = this.canvasWidth;
+            this.hud.canvasHeight = this.canvasHeight;
+        }
 
-  handleClick(x, y) {
-    const row = this.grid.getRowAt(y);
-    const col = this.grid.getColAt(x);
-    const dims = this.grid.getDimensions();
-
-    // グリッド外クリックは無視
-    if (row < 0 || row >= dims.rows || col < 0 || col >= dims.cols) return;
-
-    const moleData = this.moleManager.getMoleAt(row, col);
-    if (moleData) {
-      // モグラを叩いた
-      const cell = this.grid.getCell(row, col);
-      const cx = cell.x + cell.w / 2;
-      const cy = cell.y + cell.h / 2;
-
-      const points = moleData.mole.getPoints();
-      this.score += points;
-      this.totalHits++;
-      this.effects.push(new HitEffect(cx, cy, points));
-
-      // モグラを削除
-      const idx = this.moleManager.activeMoles.indexOf(moleData);
-      if (idx >= 0) this.moleManager.activeMoles.splice(idx, 1);
-    } else {
-      // ミス
-      const missPoints = -5;
-      this.score = Math.max(0, this.score + missPoints);
-      const cell = this.grid.getCell(row, col);
-      const cx = cell.x + cell.w / 2;
-      const cy = cell.y + cell.h / 2;
-      this.effects.push(new HitEffect(cx, cy, missPoints));
-    }
-  }
-
-  draw() {
-    const ctx = this.ctx;
-    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-    // 背景
-    ctx.fillStyle = '#87CEEB';
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-    // 地面
-    ctx.fillStyle = '#8B4513';
-    ctx.fillRect(0, this.grid.paddingTop - 20, this.canvas.width, this.canvas.height - this.grid.paddingTop + 20);
-
-    // グリッド描画
-    this.drawGrid();
-
-    // モグラ描画
-    this.drawMoles();
-
-    // エフェクト描画
-    for (const effect of this.effects) {
-      effect.draw(ctx);
+        // グリッド再作成
+        if (this.grid) {
+            this.grid = new Grid(this.canvasWidth, this.canvasHeight, this.moleImage);
+        }
     }
 
-    // HUD
-    if (this.state === 'playing') {
-      this.hud.draw(ctx, this.score, this.timeLeft, 60);
+    gameLoop() {
+        const now = performance.now();
+        const dt = Math.min((now - this.lastTime) / 1000, 0.1); // 秒単位
+        this.lastTime = now;
+
+        this.update(dt);
+        this.draw();
+
+        requestAnimationFrame(() => this.gameLoop());
     }
 
-    // ゲームオーバー画面
-    if (this.state === 'gameover') {
-      this.drawGameOver();
+    update(dt) {
+        switch (this.state) {
+            case 'title':
+                this.handleTitleClick();
+                break;
+            case 'countdown':
+                this.updateCountdown(dt);
+                break;
+            case 'playing':
+                this.updatePlaying(dt);
+                break;
+            case 'gameover':
+                this.updateGameOver(dt);
+                break;
+        }
     }
 
-    // タイトル画面
-    if (this.state === 'title') {
-      this.drawTitle();
+    draw() {
+        // 背景
+        this.ctx.fillStyle = '#87CEEB';
+        this.ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
+
+        // 地面
+        this.ctx.fillStyle = '#90EE90';
+        this.ctx.fillRect(0, this.canvasHeight * 0.5, this.canvasWidth, this.canvasHeight * 0.5);
+
+        switch (this.state) {
+            case 'title':
+                this.hud.drawTitle(this.ctx);
+                break;
+            case 'countdown':
+                if (this.grid) this.grid.draw(this.ctx);
+                this.hud.drawCountdown(this.ctx, this.countdownValue);
+                break;
+            case 'playing':
+                if (this.grid) this.grid.draw(this.ctx);
+                this.hud.drawScore(this.ctx, this.score);
+                this.hud.drawCombo(this.ctx, this.combo);
+                this.hud.drawTimer(this.ctx, this.timeLeft);
+                break;
+            case 'gameover':
+                if (this.grid) this.grid.draw(this.ctx);
+                this.hud.drawGameOver(this.ctx, this.score, this.maxCombo);
+                break;
+        }
     }
-  }
 
-  drawGrid() {
-    const ctx = this.ctx;
-    const dims = this.grid.getDimensions();
-
-    for (let row = 0; row < dims.rows; row++) {
-      for (let col = 0; col < dims.cols; col++) {
-        const cell = this.grid.getCell(row, col);
-
-        // 穴
-        ctx.fillStyle = '#654321';
-        ctx.beginPath();
-        ctx.ellipse(cell.x + cell.w / 2, cell.y + cell.h / 2, cell.w / 2, cell.h / 2.5, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.strokeStyle = '#3E2723';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-      }
+    handleTitleClick() {
+        if (this.input.hasClick()) {
+            this.input.consumeClick();
+            this.startCountdown();
+        }
     }
-  }
 
-  drawMoles() {
-    const ctx = this.ctx;
-    const moles = this.moleManager.getActiveMoles();
+    startCountdown() {
+        this.state = 'countdown';
+        this.countdownValue = 3;
+        this.countdownTimer = 0;
+        this.score = 0;
+        this.combo = 0;
+        this.maxCombo = 0;
+        this.timeLeft = 30;
+        this.spawnTimer = 0;
+        this.spawnInterval = 1.0;
 
-    for (const moleData of moles) {
-      const cell = this.grid.getCell(moleData.row, moleData.col);
-      const cx = cell.x + cell.w / 2;
-      const cy = cell.y + cell.h / 2;
-
-      // 出現アニメーション
-      const fadeIn = Math.min(1, (moleData.maxTimer - moleData.timer) / 0.2);
-      const fadeOut = Math.min(1, moleData.timer / 0.3);
-      const alpha = Math.min(fadeIn, fadeOut);
-
-      ctx.save();
-      ctx.globalAlpha = alpha;
-
-      const moleRadius = cell.w / 2.5;
-      const mole = moleData.mole;
-      const typeName = mole.getTypeName();
-      const color = mole.getEmoji();
-
-      // 体の色
-      let bodyColor;
-      if (typeName === 'normal') {
-        bodyColor = '#8B4513';
-      } else if (typeName === 'rare') {
-        bodyColor = '#FFD700';
-      } else {
-        const hue = (Date.now() / 10) % 360;
-        bodyColor = `hsl(${hue}, 100%, 60%)`;
-      }
-
-      ctx.fillStyle = bodyColor;
-      ctx.beginPath();
-      ctx.arc(cx, cy + 5, moleRadius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // 顔
-      ctx.fillStyle = '#000';
-      ctx.beginPath();
-      ctx.arc(cx - 8, cy - 2, 3, 0, Math.PI * 2);
-      ctx.arc(cx + 8, cy - 2, 3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(cx, cy + 5, 5, 3, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // レア装飾
-      if (typeName === 'rare') {
-        ctx.fillStyle = '#FFD700';
-        ctx.beginPath();
-        ctx.moveTo(cx - 12, cy - moleRadius + 5);
-        ctx.lineTo(cx, cy - moleRadius - 15);
-        ctx.lineTo(cx + 12, cy - moleRadius + 5);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = '#B8860B';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      } else if (typeName === 'ultra_rare') {
-        const hue = (Date.now() / 50) % 360;
-        ctx.strokeStyle = `hsl(${hue}, 100%, 70%)`;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(cx, cy, moleRadius + 8, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.fillStyle = '#FFF';
-        ctx.font = '16px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('⭐', cx + moleRadius + 5, cy - moleRadius);
-      }
-
-      ctx.restore();
+        // グリッドがまだない場合は作成
+        if (!this.grid) {
+            this.grid = new Grid(this.canvasWidth, this.canvasHeight, this.moleImage);
+        }
     }
-  }
 
-  drawTitle() {
-    const ctx = this.ctx;
+    updateCountdown(dt) {
+        this.countdownTimer += dt;
 
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        if (this.countdownTimer >= 1) {
+            this.countdownTimer -= 1;
+            this.countdownValue--;
 
-    ctx.font = 'bold 48px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#FFD700';
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 5;
-    ctx.strokeText('モグラ叩き！', this.canvas.width / 2, 250);
-    ctx.fillText('モグラ叩き！', this.canvas.width / 2, 250);
+            if (this.countdownValue < 0) {
+                // カウントダウン完了→ゲーム開始
+                this.state = 'playing';
+            }
+        }
+    }
 
-    ctx.font = '24px sans-serif';
-    ctx.fillStyle = '#FFFFFF';
-    ctx.lineWidth = 3;
-    ctx.strokeText('5×5グリッドでモグラを叩こう！', this.canvas.width / 2, 320);
-    ctx.fillText('5×5グリッドでモグラを叩こう！', this.canvas.width / 2, 320);
+    updatePlaying(dt) {
+        // 残り時間
+        this.timeLeft -= dt;
+        if (this.timeLeft <= 0) {
+            this.timeLeft = 0;
+            this.state = 'gameover';
+            this.gameOverWait = 2; // 2秒間タップ無視
+            return;
+        }
 
-    ctx.font = '18px sans-serif';
-    ctx.fillStyle = '#CCCCCC';
-    ctx.fillText('🐹 通常モグラ: 10点', this.canvas.width / 2, 380);
-    ctx.fillText('👑 レアモグラ: 30点', this.canvas.width / 2, 410);
-    ctx.fillText('✨ 激レアモグラ: 100点', this.canvas.width / 2, 440);
-    ctx.fillText('ミス: -5点', this.canvas.width / 2, 480);
+        // グリッド更新
+        if (this.grid) {
+            this.grid.update(dt);
+        }
 
-    ctx.font = 'bold 28px sans-serif';
-    ctx.fillStyle = '#4CAF50';
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 4;
-    ctx.strokeText('タップしてスタート！', this.canvas.width / 2, 550);
-    ctx.fillText('タップしてスタート！', this.canvas.width / 2, 550);
-  }
+        // モグラ出現
+        this.spawnTimer -= dt;
+        if (this.spawnTimer <= 0) {
+            // 後半（15秒切ったら）出現頻度を上げる
+            if (this.timeLeft <= 15) {
+                this.spawnInterval = 0.5;
+            } else {
+                this.spawnInterval = 1.0;
+            }
+            this.spawnTimer = this.spawnInterval;
 
-  drawGameOver() {
-    const ctx = this.ctx;
+            if (this.grid) {
+                // 1〜2体出現
+                const count = Math.random() < 0.3 ? 2 : 1;
+                for (let i = 0; i < count; i++) {
+                    this.grid.spawnMole(1.5 + Math.random());
+                }
+            }
+        }
 
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        // クリック処理
+        if (this.input.hasClick()) {
+            const click = this.input.consumeClick();
+            if (this.grid) {
+                const hitHole = this.grid.checkClick(click.x, click.y);
+                if (hitHole) {
+                    const mole = hitHole.mole;
+                    if (mole.hit()) {
+                        // 叩かった！
+                        this.combo++;
+                        if (this.combo > this.maxCombo) {
+                            this.maxCombo = this.combo;
+                        }
+                        // コンボボーナス付きスコア
+                        const bonus = Math.min(this.combo, 10);
+                        this.score += 10 * bonus;
+                    } else {
+                        // 外したor既に叩かれた→コンボリセット
+                        this.combo = 0;
+                    }
+                } else {
+                    // 穴の外をクリック→コンボリセット
+                    this.combo = 0;
+                }
+            }
+        }
+    }
 
-    ctx.font = 'bold 48px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#FF4444';
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 5;
-    ctx.strokeText('ゲームオーバー！', this.canvas.width / 2, 250);
-    ctx.fillText('ゲームオーバー！', this.canvas.width / 2, 250);
+    updateGameOver(dt) {
+        // 2秒間タップ無視
+        if (this.gameOverWait > 0) {
+            this.gameOverWait -= dt;
+            // この間タップを消費する
+            if (this.input.hasClick()) {
+                this.input.consumeClick();
+            }
+            return;
+        }
 
-    ctx.font = 'bold 36px sans-serif';
-    ctx.fillStyle = '#FFD700';
-    ctx.lineWidth = 4;
-    ctx.strokeText(`スコア: ${this.score}`, this.canvas.width / 2, 330);
-    ctx.fillText(`スコア: ${this.score}`, this.canvas.width / 2, 330);
-
-    ctx.font = '24px sans-serif';
-    ctx.fillStyle = '#FFFFFF';
-    ctx.lineWidth = 3;
-    ctx.strokeText(`撃破数: ${this.totalHits}`, this.canvas.width / 2, 380);
-    ctx.fillText(`撃破数: ${this.totalHits}`, this.canvas.width / 2, 380);
-
-    let rank = '';
-    if (this.score >= 500) rank = 'S - 超絶モグラハンター！';
-    else if (this.score >= 300) rank = 'A - すごい！';
-    else if (this.score >= 200) rank = 'B - えらい！';
-    else if (this.score >= 100) rank = 'C - 頑張って！';
-    else rank = 'D - もう一回！';
-
-    ctx.font = '20px sans-serif';
-    ctx.fillStyle = '#90EE90';
-    ctx.strokeText(rank, this.canvas.width / 2, 430);
-    ctx.fillText(rank, this.canvas.width / 2, 430);
-
-    ctx.font = 'bold 28px sans-serif';
-    ctx.fillStyle = '#4CAF50';
-    ctx.lineWidth = 4;
-    ctx.strokeText('タップしてリスタート！', this.canvas.width / 2, 520);
-    ctx.fillText('タップしてリスタート！', this.canvas.width / 2, 520);
-  }
+        // タップでタイトルに戻る
+        if (this.input.hasClick()) {
+            this.input.consumeClick();
+            this.state = 'title';
+        }
+    }
 }
+
+// ゲーム開始
+new Game();

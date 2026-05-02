@@ -1,29 +1,47 @@
 export class InputManager {
-  constructor(canvas) {
-    this.click = null;
-    this.canvas = canvas;
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.clickPosition = null;
+        this.isClicking = false;
 
-    canvas.addEventListener('pointerdown', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      this.click = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      };
-    });
-  }
+        this.setupEvents();
+    }
 
-  getClick() {
-    return this.click;
-  }
+    setupEvents() {
+        // マウス
+        this.canvas.addEventListener('mousedown', (e) => this.handleClick(e.clientX, e.clientY));
 
-  clearClick() {
-    this.click = null;
-  }
+        // タッチ
+        this.canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            this.handleClick(touch.clientX, touch.clientY);
+        }, { passive: false });
+    }
 
-  contains(x, y) {
-    if (!this.click) return false;
-    const dx = this.click.x - x;
-    const dy = this.click.y - y;
-    return dx * dx + dy * dy < 25; // 5px radius
-  }
+    handleClick(clientX, clientY) {
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+
+        this.clickPosition = {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
+        this.isClicking = true;
+    }
+
+    consumeClick() {
+        const pos = this.clickPosition;
+        if (pos) {
+            this.clickPosition = null;
+            this.isClicking = false;
+            return pos;
+        }
+        return null;
+    }
+
+    hasClick() {
+        return this.clickPosition !== null;
+    }
 }
