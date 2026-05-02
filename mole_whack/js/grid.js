@@ -1,17 +1,17 @@
-import { Mole } from './mole.js?v=1777726587';
+import { Mole } from './mole.js?v=1777728669';
 
 export class Grid {
     constructor(canvasWidth, canvasHeight, moleImage) {
         this.canvasWidth = canvasWidth;
         this.canvasHeight = canvasHeight;
 
-        // 3x3グリッド
-        this.columns = 3;
-        this.rows = 3;
+        // 5x5グリッド
+        this.columns = 5;
+        this.rows = 5;
 
         // グリッドの位置計算
-        const gridWidth = Math.min(canvasWidth * 0.85, 500);
-        const gridHeight = Math.min(canvasHeight * 0.6, 500);
+        const gridWidth = Math.min(canvasWidth * 0.9, 600);
+        const gridHeight = Math.min(canvasHeight * 0.65, 600);
         const startX = (canvasWidth - gridWidth) / 2;
         const startY = (canvasHeight - gridHeight) / 2 + canvasHeight * 0.05;
 
@@ -101,5 +101,10 @@ export class Grid {
 
     getAllMoles() {
         return this.holes.map(h => h.mole);
+    }
+
+    // 現在出てるモグラの数
+    getActiveMoleCount() {
+        return this.holes.filter(h => h.mole.isUp).length;
     }
 }

@@ -1,8 +1,8 @@
-import { InputManager } from './input.js?v=1777726587';
-import { Grid } from './grid.js?v=1777726587';
-import { HUD } from './hud.js?v=1777726587';
-import { ParticleSystem } from './particle.js?v=1777726587';
-import { ScorePopupManager } from './score_popup.js?v=1777726587';
+import { InputManager } from './input.js?v=1777728669';
+import { Grid } from './grid.js?v=1777728669';
+import { HUD } from './hud.js?v=1777728669';
+import { ParticleSystem } from './particle.js?v=1777728669';
+import { ScorePopupManager } from './score_popup.js?v=1777728669';
 
 export class Game {
     constructor() {
@@ -187,18 +187,31 @@ export class Game {
             this.grid.update(dt);
         }
 
-        // モグラ出現
+        // モグラ出現（5×5グリッドに合わせて調整）
         this.spawnTimer -= dt;
         if (this.spawnTimer <= 0) {
-            if (this.timeLeft <= 15) {
-                this.spawnInterval = 0.5;
-            } else {
-                this.spawnInterval = 1.0;
-            }
-            this.spawnTimer = this.spawnInterval;
+            const activeCount = this.grid ? this.grid.getActiveMoleCount() : 0;
 
-            if (this.grid) {
-                const count = Math.random() < 0.3 ? 2 : 1;
+            // 残り時間による難易度調整
+            let interval, maxActive;
+            if (this.timeLeft > 20) {
+                // 前半: ゆったり
+                interval = 0.8 + Math.random() * 0.5;
+                maxActive = 3;
+            } else if (this.timeLeft > 10) {
+                // 中盤: 普通
+                interval = 0.5 + Math.random() * 0.4;
+                maxActive = 4;
+            } else {
+                // 後半: 激しい
+                interval = 0.3 + Math.random() * 0.3;
+                maxActive = 6;
+            }
+
+            this.spawnTimer = interval;
+
+            if (this.grid && activeCount < maxActive) {
+                const count = (this.timeLeft <= 10 && Math.random() < 0.4) ? 2 : 1;
                 for (let i = 0; i < count; i++) {
                     this.grid.spawnMole(1.5 + Math.random());
                 }

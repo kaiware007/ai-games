@@ -107,10 +107,10 @@ export class HUD {
 
         // タイトル
         ctx.fillStyle = '#FF6B6B';
-        ctx.font = 'bold 48px Arial';
+        ctx.font = 'bold 42px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('モグラ叩き', x, y);
+        ctx.fillText('またにたたき', x, y);
 
         // スタートテキスト
         ctx.fillStyle = 'white';
