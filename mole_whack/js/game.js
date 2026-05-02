@@ -1,8 +1,8 @@
-import { InputManager } from './input.js?v=1777728669';
-import { Grid } from './grid.js?v=1777728669';
-import { HUD } from './hud.js?v=1777728669';
-import { ParticleSystem } from './particle.js?v=1777728669';
-import { ScorePopupManager } from './score_popup.js?v=1777728669';
+import { InputManager } from './input.js?v=1777731384';
+import { Grid } from './grid.js?v=1777731384';
+import { HUD } from './hud.js?v=1777731384';
+import { ParticleSystem } from './particle.js?v=1777731384';
+import { ScorePopupManager } from './score_popup.js?v=1777731384';
 
 export class Game {
     constructor() {
@@ -102,12 +102,12 @@ export class Game {
     }
 
     draw() {
-        // 背景
-        this.ctx.fillStyle = '#87CEEB';
+        // 背景 — 暗い緑一色
+        this.ctx.fillStyle = '#2E5A27';
         this.ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
 
-        // 地面
-        this.ctx.fillStyle = '#90EE90';
+        // 地面 — さらに濃い緑
+        this.ctx.fillStyle = '#1E3C18';
         this.ctx.fillRect(0, this.canvasHeight * 0.5, this.canvasWidth, this.canvasHeight * 0.5);
 
         switch (this.state) {

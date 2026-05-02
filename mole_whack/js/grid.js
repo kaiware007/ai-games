@@ -1,4 +1,4 @@
-import { Mole } from './mole.js?v=1777728669';
+import { Mole } from './mole.js?v=1777731384';
 
 export class Grid {
     constructor(canvasWidth, canvasHeight, moleImage) {
