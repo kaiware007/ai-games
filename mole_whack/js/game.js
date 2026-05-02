@@ -1,8 +1,8 @@
-import { InputManager } from './input.js?v=1777702320';
-import { Grid } from './grid.js?v=1777702320';
-import { MoleManager, MOLE_TYPES } from './mole_manager.js?v=1777702320';
-import { HitEffect } from './hit_effect.js?v=1777702320';
-import { HUD } from './hud.js?v=1777702320';
+import { InputManager } from './input.js?v=1777703179';
+import { Grid } from './grid.js?v=1777703179';
+import { MoleManager, MOLE_TYPES } from './mole_manager.js?v=1777703179';
+import { HitEffect } from './hit_effect.js?v=1777703179';
+import { HUD } from './hud.js?v=1777703179';
 
 export class Game {
   constructor(canvas) {
@@ -55,9 +55,12 @@ export class Game {
 
   getClickPos(clientX, clientY) {
     const rect = this.canvas.getBoundingClientRect();
+    // CSS表示サイズと内部サイズの違いを補正
+    const scaleX = this.canvas.width / rect.width;
+    const scaleY = this.canvas.height / rect.height;
     return {
-      x: clientX - rect.left,
-      y: clientY - rect.top
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
     };
   }
 
@@ -108,11 +111,12 @@ export class Game {
       if (idx >= 0) this.moleManager.activeMoles.splice(idx, 1);
     } else {
       // ミス
-      this.score = Math.max(0, this.score - 5);
+      const missPoints = -5;
+      this.score = Math.max(0, this.score + missPoints);
       const cell = this.grid.getCell(row, col);
       const cx = cell.x + cell.w / 2;
       const cy = cell.y + cell.h / 2;
-      this.effects.push(new HitEffect(cx, cy, -5));
+      this.effects.push(new HitEffect(cx, cy, missPoints));
     }
   }
 
@@ -334,7 +338,7 @@ export class Game {
     else if (this.score >= 300) rank = 'A - すごい！';
     else if (this.score >= 200) rank = 'B - えらい！';
     else if (this.score >= 100) rank = 'C - 頑張って！';
-    else rank = 'D -  nochmal！';
+    else rank = 'D - もう一回！';
 
     ctx.font = '20px sans-serif';
     ctx.fillStyle = '#90EE90';

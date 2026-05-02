@@ -8,7 +8,8 @@ export class HitEffect {
     this.particles = [];
 
     // パーティクル生成
-    const count = points >= 100 ? 12 : points >= 30 ? 8 : 5;
+    const absPoints = Math.abs(points);
+    const count = absPoints >= 100 ? 12 : absPoints >= 30 ? 8 : 5;
     for (let i = 0; i < count; i++) {
       const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
       const speed = 40 + Math.random() * 60;
@@ -19,8 +20,8 @@ export class HitEffect {
         life: 0.5 + Math.random() * 0.5,
         maxLife: 0.5 + Math.random() * 0.5,
         size: 2 + Math.random() * 4,
-        color: points >= 100 ? `hsl(${Math.random() * 360}, 100%, 70%)` :
-               points >= 30 ? '#FFD700' : '#FFFFFF'
+        color: absPoints >= 100 ? `hsl(${Math.random() * 360}, 100%, 70%)` :
+               absPoints >= 30 ? '#FFD700' : '#FFFFFF'
       });
     }
   }
@@ -41,13 +42,23 @@ export class HitEffect {
     // 数字表示
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.font = `bold ${this.points >= 100 ? 36 : 28}px sans-serif`;
+    const absPoints = Math.abs(this.points);
+    ctx.font = `bold ${absPoints >= 100 ? 36 : 28}px sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = this.points >= 100 ? '#FF69B4' :
-                    this.points >= 30 ? '#FFD700' : '#FFFFFF';
+
+    // 正負で色を分ける
+    if (this.points > 0) {
+      ctx.fillStyle = absPoints >= 100 ? '#FF69B4' :
+                      absPoints >= 30 ? '#FFD700' : '#FFFFFF';
+    } else {
+      ctx.fillStyle = '#FF4444'; // ミスは赤色
+    }
+
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 3;
-    const text = `+${this.points}`;
+
+    // 正のときは「+10」、負のときは「-5」のように表示
+    const text = this.points >= 0 ? `+${this.points}` : `${this.points}`;
     ctx.strokeText(text, this.x, this.y - (1 - alpha) * 40);
     ctx.fillText(text, this.x, this.y - (1 - alpha) * 40);
     ctx.restore();
