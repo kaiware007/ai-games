@@ -95,40 +95,48 @@ export class MoleManager {
       // 同時出現上限をチェック
       const maxActive = this.getMaxActiveMoles();
       if (this.activeMoles.length < maxActive) {
-        this.spawnNormalMole();
+        if (!this.trySpawnNormalMole()) {
+          // 穴が埋まってたら少し待って再試行
+          this.spawnTimer = 0.2;
+        }
+      } else {
+        // 上限に達してたら少し待つ
+        this.spawnTimer = 0.3;
       }
-      this.spawnTimer = this.getSpawnInterval();
     }
   }
 
-  spawnUltraRare() {
+  trySpawnNormalMole() {
     const { rows, cols } = this.grid.getDimensions();
-    let cellIndex;
-    do {
-      cellIndex = Math.floor(Math.random() * rows * cols);
-    } while (this.isCellOccupied(cellIndex, rows));
+    const totalCells = rows * cols;
 
-    const row = Math.floor(cellIndex / cols);
-    const col = cellIndex % cols;
-    this.lastSpawnCell = cellIndex;
+    // 空いてる穴のリストを作る
+    const occupiedCells = new Set();
+    for (const mole of this.activeMoles) {
+      occupiedCells.add(mole.row * cols + mole.col);
+    }
 
-    this.activeMoles.push({
-      row, col,
-      type: MOLE_TYPES.ULTRA_RARE,
-      timer: MOLE_TYPES.ULTRA_RARE.duration,
-      maxTimer: MOLE_TYPES.ULTRA_RARE.duration
-    });
-  }
+    const emptyCells = [];
+    for (let i = 0; i < totalCells; i++) {
+      if (!occupiedCells.has(i)) {
+        emptyCells.push(i);
+      }
+    }
 
-  spawnNormalMole() {
-    const { rows, cols } = this.grid.getDimensions();
-    let cellIndex;
-    let attempts = 0;
-    do {
-      cellIndex = Math.floor(Math.random() * rows * cols);
-      attempts++;
-    } while (attempts < 50 && (this.isCellOccupied(cellIndex, rows) || cellIndex === this.lastSpawnCell));
+    if (emptyCells.length === 0) {
+      return false; // 穴が全部埋まってる
+    }
 
+    // 前回と同じ穴を避ける
+    let candidates = emptyCells;
+    if (this.lastSpawnCell >= 0 && emptyCells.length > 1) {
+      candidates = emptyCells.filter(i => i !== this.lastSpawnCell);
+    }
+    if (candidates.length === 0) {
+      candidates = emptyCells;
+    }
+
+    const cellIndex = candidates[Math.floor(Math.random() * candidates.length)];
     const row = Math.floor(cellIndex / cols);
     const col = cellIndex % cols;
     this.lastSpawnCell = cellIndex;
@@ -151,12 +159,41 @@ export class MoleManager {
       timer: moleType.duration,
       maxTimer: moleType.duration
     });
+
+    return true;
   }
 
-  isCellOccupied(cellIndex, cols) {
-    return this.activeMoles.some(m => {
-      const mIndex = m.row * cols + m.col;
-      return mIndex === cellIndex;
+  spawnUltraRare() {
+    const { rows, cols } = this.grid.getDimensions();
+    const totalCells = rows * cols;
+
+    // 空いてる穴のリストを作る
+    const occupiedCells = new Set();
+    for (const mole of this.activeMoles) {
+      occupiedCells.add(mole.row * cols + mole.col);
+    }
+
+    const emptyCells = [];
+    for (let i = 0; i < totalCells; i++) {
+      if (!occupiedCells.has(i)) {
+        emptyCells.push(i);
+      }
+    }
+
+    if (emptyCells.length === 0) {
+      return; // 穴が全部埋まってる
+    }
+
+    const cellIndex = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+    const row = Math.floor(cellIndex / cols);
+    const col = cellIndex % cols;
+    this.lastSpawnCell = cellIndex;
+
+    this.activeMoles.push({
+      row, col,
+      type: MOLE_TYPES.ULTRA_RARE,
+      timer: MOLE_TYPES.ULTRA_RARE.duration,
+      maxTimer: MOLE_TYPES.ULTRA_RARE.duration
     });
   }
 

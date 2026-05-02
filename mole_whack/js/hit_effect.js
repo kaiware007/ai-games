@@ -57,10 +57,19 @@ export class HitEffect {
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 3;
 
-    // 正のときは「+10」、負のときは「-5」のように表示
-    const text = this.points >= 0 ? `+${this.points}` : `${this.points}`;
-    ctx.strokeText(text, this.x, this.y - (1 - alpha) * 40);
-    ctx.fillText(text, this.x, this.y - (1 - alpha) * 40);
+    // 点数表示: 正なら「+10」、負なら「-5」
+    let text;
+    if (this.points > 0) {
+      text = '+' + this.points;
+    } else if (this.points < 0) {
+      text = '' + this.points;  // 既に負の値なので「-5」になる
+    } else {
+      text = '0';
+    }
+
+    const drawY = this.y - (1 - alpha) * 40;
+    ctx.strokeText(text, this.x, drawY);
+    ctx.fillText(text, this.x, drawY);
     ctx.restore();
 
     // パーティクル

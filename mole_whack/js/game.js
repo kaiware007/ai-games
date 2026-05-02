@@ -1,8 +1,8 @@
-import { InputManager } from './input.js?v=1777707829';
-import { Grid } from './grid.js?v=1777707829';
-import { MoleManager, MOLE_TYPES } from './mole_manager.js?v=1777707829';
-import { HitEffect } from './hit_effect.js?v=1777707829';
-import { HUD } from './hud.js?v=1777707829';
+import { InputManager } from './input.js?v=1777716047';
+import { Grid } from './grid.js?v=1777716047';
+import { MoleManager, MOLE_TYPES } from './mole_manager.js?v=1777716047';
+import { HitEffect } from './hit_effect.js?v=1777716047';
+import { HUD } from './hud.js?v=1777716047';
 
 export class Game {
   constructor(canvas) {
@@ -30,7 +30,6 @@ export class Game {
       } else if (this.state === 'playing') {
         this.handleClick(pos.x, pos.y);
       } else if (this.state === 'gameover') {
-        // ゲームオーバー画面でクリックしたらリスタート
         this.startGame();
       }
     });
@@ -102,15 +101,16 @@ export class Game {
       const cx = cell.x + cell.w / 2;
       const cy = cell.y + cell.h / 2;
 
-      this.score += mole.type.points;
+      const points = mole.type.points;
+      this.score += points;
       this.totalHits++;
-      this.effects.push(new HitEffect(cx, cy, mole.type.points));
+      this.effects.push(new HitEffect(cx, cy, points));
 
       // モグラを削除
       const idx = this.moleManager.activeMoles.indexOf(mole);
       if (idx >= 0) this.moleManager.activeMoles.splice(idx, 1);
     } else {
-      // ミス
+      // ミス（モグラがいない穴を叩いた）
       const missPoints = -5;
       this.score = Math.max(0, this.score + missPoints);
       const cell = this.grid.getCell(row, col);
@@ -204,7 +204,6 @@ export class Game {
       // 体の色
       let bodyColor = mole.type.color;
       if (mole.type.name === 'ultra_rare') {
-        // 虹色
         const hue = (Date.now() / 10) % 360;
         bodyColor = `hsl(${hue}, 100%, 60%)`;
       }
@@ -219,19 +218,16 @@ export class Game {
 
       // 顔
       ctx.fillStyle = '#000';
-      // 目
       ctx.beginPath();
       ctx.arc(cx - 8, cy - 2, 3, 0, Math.PI * 2);
       ctx.arc(cx + 8, cy - 2, 3, 0, Math.PI * 2);
       ctx.fill();
-      // 鼻
       ctx.beginPath();
       ctx.ellipse(cx, cy + 5, 5, 3, 0, 0, Math.PI * 2);
       ctx.fill();
 
       // 種類に応じた装飾
       if (mole.type.name === 'rare') {
-        // 金色の帽子
         ctx.fillStyle = '#FFD700';
         ctx.beginPath();
         ctx.moveTo(cx - 12, cy - moleRadius + 5);
@@ -243,7 +239,6 @@ export class Game {
         ctx.lineWidth = 1;
         ctx.stroke();
       } else if (mole.type.name === 'ultra_rare') {
-        // 虹のオーラ
         const hue = (Date.now() / 50) % 360;
         ctx.strokeStyle = `hsl(${hue}, 100%, 70%)`;
         ctx.lineWidth = 3;
@@ -251,7 +246,6 @@ export class Game {
         ctx.arc(cx, cy, moleRadius + 8, 0, Math.PI * 2);
         ctx.stroke();
 
-        // スター
         ctx.fillStyle = '#FFF';
         ctx.font = '16px sans-serif';
         ctx.textAlign = 'center';
@@ -265,11 +259,9 @@ export class Game {
   drawTitle() {
     const ctx = this.ctx;
 
-    // 半透明背景
     ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // タイトル
     ctx.font = 'bold 48px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = '#FFD700';
@@ -278,14 +270,12 @@ export class Game {
     ctx.strokeText('モグラ叩き！', this.canvas.width / 2, 250);
     ctx.fillText('モグラ叩き！', this.canvas.width / 2, 250);
 
-    // サブタイトル
     ctx.font = '24px sans-serif';
     ctx.fillStyle = '#FFFFFF';
     ctx.lineWidth = 3;
     ctx.strokeText('5×5グリッドでモグラを叩こう！', this.canvas.width / 2, 320);
     ctx.fillText('5×5グリッドでモグラを叩こう！', this.canvas.width / 2, 320);
 
-    // 説明文
     ctx.font = '18px sans-serif';
     ctx.fillStyle = '#CCCCCC';
     ctx.fillText('🐹 通常モグラ: 10点', this.canvas.width / 2, 380);
@@ -293,7 +283,6 @@ export class Game {
     ctx.fillText('✨ 激レアモグラ: 100点', this.canvas.width / 2, 440);
     ctx.fillText('ミス: -5点', this.canvas.width / 2, 480);
 
-    // スタートボタン
     ctx.font = 'bold 28px sans-serif';
     ctx.fillStyle = '#4CAF50';
     ctx.strokeStyle = '#000';
@@ -305,11 +294,9 @@ export class Game {
   drawGameOver() {
     const ctx = this.ctx;
 
-    // 半透明背景
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // ゲームオーバーテキスト
     ctx.font = 'bold 48px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = '#FF4444';
@@ -318,21 +305,18 @@ export class Game {
     ctx.strokeText('ゲームオーバー！', this.canvas.width / 2, 250);
     ctx.fillText('ゲームオーバー！', this.canvas.width / 2, 250);
 
-    // スコア表示
     ctx.font = 'bold 36px sans-serif';
     ctx.fillStyle = '#FFD700';
     ctx.lineWidth = 4;
     ctx.strokeText(`スコア: ${this.score}`, this.canvas.width / 2, 330);
     ctx.fillText(`スコア: ${this.score}`, this.canvas.width / 2, 330);
 
-    // 撃破数
     ctx.font = '24px sans-serif';
     ctx.fillStyle = '#FFFFFF';
     ctx.lineWidth = 3;
     ctx.strokeText(`撃破数: ${this.totalHits}`, this.canvas.width / 2, 380);
     ctx.fillText(`撃破数: ${this.totalHits}`, this.canvas.width / 2, 380);
 
-    // 評価
     let rank = '';
     if (this.score >= 500) rank = 'S - 超絶モグラハンター！';
     else if (this.score >= 300) rank = 'A - すごい！';
@@ -345,7 +329,6 @@ export class Game {
     ctx.strokeText(rank, this.canvas.width / 2, 430);
     ctx.fillText(rank, this.canvas.width / 2, 430);
 
-    // リスタートボタン
     ctx.font = 'bold 28px sans-serif';
     ctx.fillStyle = '#4CAF50';
     ctx.lineWidth = 4;
