@@ -1,4 +1,4 @@
-import { Mole, MOLE_TYPES } from './mole.js?v=1777731384';
+import { Mole, MOLE_TYPES } from './mole.js?v=1777733243';
 
 export class MoleManager {
   constructor(grid, gameDuration, ultraRareCount) {

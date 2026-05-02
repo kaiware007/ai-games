@@ -1,4 +1,4 @@
-import { Mole } from './mole.js?v=1777731384';
+import { Mole } from './mole.js?v=1777733243';
 
 export class Grid {
     constructor(canvasWidth, canvasHeight, moleImage) {
@@ -55,20 +55,20 @@ export class Grid {
     }
 
     draw(ctx) {
-        // 穴を描画
+        // 穴を描画（地面は描画しない）
         this.holes.forEach(hole => {
             // 穴の影
             ctx.beginPath();
             ctx.ellipse(hole.x, hole.y + this.holeRadius * 0.5,
                 this.holeRadius * 1.2, this.holeRadius * 0.6, 0, 0, Math.PI * 2);
-            ctx.fillStyle = '#5C4033';
+            ctx.fillStyle = '#1a3315';
             ctx.fill();
 
             // 穴
             ctx.beginPath();
             ctx.ellipse(hole.x, hole.y + this.holeRadius * 0.3,
                 this.holeRadius * 1.0, this.holeRadius * 0.5, 0, 0, Math.PI * 2);
-            ctx.fillStyle = '#3D2817';
+            ctx.fillStyle = '#0f200a';
             ctx.fill();
         });
 
@@ -79,24 +79,34 @@ export class Grid {
     }
 
     // クリック処理 — 成功したら true を返し、パーティクル・ポップアップを発生させる
-    checkClick(clickX, clickY, particles, popups) {
+    checkClick(clickX, clickY, particles, popups, isFever) {
         for (const hole of this.holes) {
             if (hole.mole.isClicked(clickX, clickY)) {
                 // モグラを叩く — パーティクルとスコアポップアップを発生
-                hole.mole.hit(particles, popups);
+                hole.mole.hit(particles, popups, isFever || false);
                 return true;
             }
         }
         return false;
     }
 
-    spawnMole(duration) {
+    spawnMole(duration, type) {
         const hole = this.getRandomEmptyHole();
         if (hole) {
-            hole.mole.appear(duration);
+            hole.mole.appear(duration, type);
             return true;
         }
         return false;
+    }
+
+    // フィーバーモード: 全穴からモグラを出現させる
+    spawnMolesAllHoles(duration) {
+        for (const hole of this.holes) {
+            if (!hole.mole.isUp) {
+                const type = Math.random() < 0.5 ? 'normal' : (Math.random() < 0.6 ? 'fast' : 'ultra');
+                hole.mole.appear(duration, type);
+            }
+        }
     }
 
     getAllMoles() {
@@ -106,5 +116,10 @@ export class Grid {
     // 現在出てるモグラの数
     getActiveMoleCount() {
         return this.holes.filter(h => h.mole.isUp).length;
+    }
+
+    // 空の穴の数
+    getEmptyHoleCount() {
+        return this.holes.filter(h => !h.mole.isUp).length;
     }
 }

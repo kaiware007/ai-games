@@ -6,7 +6,7 @@ export class HUD {
 
     drawScore(ctx, score) {
         const x = 20;
-        const y = 40;
+        const y = 70;
 
         ctx.save();
 
@@ -30,7 +30,7 @@ export class HUD {
         if (combo < 2) return;
 
         const x = this.canvasWidth - 20;
-        const y = 40;
+        const y = 70;
 
         ctx.save();
 
@@ -68,6 +68,70 @@ export class HUD {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(`${Math.ceil(timeLeft)}秒`, x, y);
+
+        ctx.restore();
+    }
+
+    // フィーバーゲージ描画
+    drawFeverGauge(ctx, gaugeValue, isFever, feverTimeLeft) {
+        const gaugeWidth = 300;
+        const gaugeHeight = 20;
+        const x = (this.canvasWidth - gaugeWidth) / 2;
+        const y = 10;
+
+        ctx.save();
+
+        // 背景
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.beginPath();
+        ctx.roundRect(x - 2, y - 2, gaugeWidth + 4, gaugeHeight + 4, 6);
+        ctx.fill();
+
+        // ゲージ本体
+        const fillWidth = (gaugeValue / 100) * gaugeWidth;
+
+        if (isFever) {
+            // フィーバー中は虹色アニメーション
+            const hue = (Date.now() / 10) % 360;
+            const gradient = ctx.createLinearGradient(x, y, x + gaugeWidth, y);
+            gradient.addColorStop(0, `hsl(${hue}, 100%, 60%)`);
+            gradient.addColorStop(0.5, `hsl(${(hue + 120) % 360}, 100%, 60%)`);
+            gradient.addColorStop(1, `hsl(${(hue + 240) % 360}, 100%, 60%)`);
+            ctx.fillStyle = gradient;
+        } else {
+            // 通常: 黄色→オレンジ→赤
+            const gradient = ctx.createLinearGradient(x, y, x + gaugeWidth, y);
+            gradient.addColorStop(0, '#FFD700');
+            gradient.addColorStop(0.5, '#FFA500');
+            gradient.addColorStop(1, '#FF4500');
+            ctx.fillStyle = gradient;
+        }
+
+        ctx.beginPath();
+        ctx.roundRect(x, y, fillWidth, gaugeHeight, 4);
+        ctx.fill();
+
+        // ゲージ枠
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(x, y, gaugeWidth, gaugeHeight, 4);
+        ctx.stroke();
+
+        // テキスト
+        if (isFever) {
+            ctx.fillStyle = '#FFD700';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`🔥 FEVER! (${Math.ceil(feverTimeLeft)}秒) 🔥`, this.canvasWidth / 2, y + gaugeHeight / 2);
+        } else {
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${Math.floor(gaugeValue)}%`, this.canvasWidth / 2, y + gaugeHeight / 2);
+        }
 
         ctx.restore();
     }
@@ -121,7 +185,8 @@ export class HUD {
         ctx.fillStyle = '#DDD';
         ctx.font = '20px Arial';
         ctx.fillText('モグラがでたらタップして叩いてね！', x, y + 140);
-        ctx.fillText('連続で叩くとコンボUP！', x, y + 170);
+        ctx.fillText('連続で叩くとフィーバーゲージが溜まる！', x, y + 170);
+        ctx.fillText('20コンボでフィーバーモード発動🔥', x, y + 200);
 
         ctx.restore();
     }
@@ -159,19 +224,6 @@ export class HUD {
         ctx.fillStyle = '#90EE90';
         ctx.font = 'bold 24px Arial';
         ctx.fillText('タップしてもう一度！', x, y + 90);
-
-        ctx.restore();
-    }
-
-    drawHitEffect(ctx, x, y, size) {
-        ctx.save();
-
-        // 星の演出
-        ctx.fillStyle = '#FFD700';
-        ctx.font = `bold ${size}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('⭐', x, y);
 
         ctx.restore();
     }

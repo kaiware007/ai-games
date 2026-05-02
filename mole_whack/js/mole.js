@@ -1,4 +1,19 @@
-// モグラクラス
+// モグラクラス — 3種類（通常・速い・超速い）
+
+// モグラ種類定義
+export const MOLE_TYPES = {
+    normal:   { name: '通常',   duration: 5.0, points: 10, color: '#8B4513', tint: null },
+    fast:     { name: '速い',   duration: 3.0, points: 30, color: '#4A90D9', tint: 'rgba(74,144,217,0.4)' },
+    ultra:    { name: '超速い', duration: 1.5, points: 50, color: '#E74C3C', tint: 'rgba(231,76,60,0.5)' }
+};
+
+// 出現確率（通常50%, 速い30%, 超速い20%）
+function randomMoleType() {
+    const r = Math.random();
+    if (r < 0.50) return 'normal';
+    if (r < 0.80) return 'fast';
+    return 'ultra';
+}
 
 export class Mole {
     constructor(column, row, holeX, holeY, holeRadius, moleImage) {
@@ -8,6 +23,10 @@ export class Mole {
         this.holeY = holeY;
         this.holeRadius = holeRadius;
         this.moleImage = moleImage;
+
+        // 種類
+        this.type = 'normal';
+        this.typeInfo = MOLE_TYPES.normal;
 
         // 状態
         this.isUp = false;
@@ -21,13 +40,17 @@ export class Mole {
         this.targetYOffset = 0;
     }
 
-    appear(duration) {
+    appear(duration, type) {
         this.isUp = true;
         this.isHit = false;
         this.timer = duration;
         this.maxTime = duration;
         this.targetYOffset = -this.holeRadius * 0.8;
         this.hitEffect = 0;
+
+        // 種類を設定
+        this.type = type || randomMoleType();
+        this.typeInfo = MOLE_TYPES[this.type];
     }
 
     hide() {
@@ -39,7 +62,7 @@ export class Mole {
     }
 
     // モグラを叩く処理 — パーティクルとスコアポップアップを発生させてモグラをすぐに消す
-    hit(particles, popups) {
+    hit(particles, popups, isFever) {
         if (this.isHit) return false;
 
         this.isHit = true;
@@ -48,14 +71,28 @@ export class Mole {
         const x = this.holeX;
         const y = this.holeY + this.yOffset;
 
-        // パーティクルを噴射（黄色・白・緑・オレンジ）
-        const colors = ['#FFD700', '#FFFFFF', '#90EE90', '#FFA500', '#FF6B6B'];
-        particles.emit(x, y, 20, colors);
+        // 種類ごとの得点（フィーバー中は2倍）
+        let points = this.typeInfo.points;
+        if (isFever) points *= 2;
 
-        // スコアポップアップ（+10 を表示）
-        popups.add(x, y - 20, '+10', '#FFD700');
+        // パーティクルを噴射 — 種類ごとの色
+        const colorSets = {
+            normal: ['#FFD700', '#FFFFFF', '#90EE90', '#FFA500'],
+            fast:   ['#4A90D9', '#87CEEB', '#FFFFFF', '#ADD8E6'],
+            ultra:  ['#E74C3C', '#FF6B6B', '#FFFFFF', '#FF4500']
+        };
+        const popupColors = {
+            normal: '#FFD700',
+            fast:   '#87CEEB',
+            ultra:  '#FF6B6B'
+        };
+        particles.emit(x, y, 20, colorSets[this.type]);
 
-        // すぐにモグラを消す（hitEffect は短い演出時間）
+        // スコアポップアップ
+        const text = `+${points}`;
+        popups.add(x, y - 20, text, popupColors[this.type]);
+
+        // すぐにモグラを消す
         this.hitEffect = 0.15;
 
         return true;
@@ -102,11 +139,19 @@ export class Mole {
             // 画像表示
             const imgSize = size * 2;
             ctx.drawImage(this.moleImage, x - imgSize / 2, y - imgSize / 2, imgSize, imgSize);
+
+            // 種類ごとの色 tint を上に乗せる
+            if (this.typeInfo.tint) {
+                ctx.globalCompositeOperation = 'source-atop';
+                ctx.fillStyle = this.typeInfo.tint;
+                ctx.fillRect(x - imgSize / 2, y - imgSize / 2, imgSize, imgSize);
+                ctx.globalCompositeOperation = 'source-over';
+            }
         } else {
-            // フォールバック: 円+顔
+            // フォールバック: 円+顔（種類ごとの色）
             ctx.beginPath();
             ctx.arc(x, y, size, 0, Math.PI * 2);
-            ctx.fillStyle = this.isHit ? '#FF6B6B' : '#8B4513';
+            ctx.fillStyle = this.isHit ? '#FF6B6B' : this.typeInfo.color;
             ctx.fill();
             ctx.strokeStyle = '#5C2E00';
             ctx.lineWidth = 2;
