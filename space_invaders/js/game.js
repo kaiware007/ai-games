@@ -1,9 +1,9 @@
 // メインゲームクラス
-import { InputManager } from './input.js?v=1777653562';
-import { Player } from './player.js?v=1777653562';
-import { EnemyManager } from './enemy.js?v=1777653562';
-import { BulletManager } from './bullet.js?v=1777653562';
-import { HUD } from './hud.js?v=1777653562';
+import { InputManager } from './input.js?v=1777680504';
+import { Player } from './player.js?v=1777680504';
+import { EnemyManager } from './enemy.js?v=1777680504';
+import { BulletManager } from './bullet.js?v=1777680504';
+import { HUD } from './hud.js?v=1777680504';
 
 const CONFIG = {
     canvasWidth: 480,
@@ -113,7 +113,7 @@ export class Game {
         }
 
         // プレイヤー更新
-        const playerBullet = this.player.update(this.input);
+        const playerBullet = this.player.update(dt, this.input);
         if (playerBullet) {
             this.bullets.add(playerBullet);
         }

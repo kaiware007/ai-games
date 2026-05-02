@@ -1,50 +1,41 @@
 // 弾管理クラス
 export class BulletManager {
-    constructor(canvasWidth, canvasHeight) {
-        this.bullets = [];
-        this.canvasWidth = canvasWidth;
-        this.canvasHeight = canvasHeight;
-    }
-
-    init() {
+    constructor() {
         this.bullets = [];
     }
 
-    addBullet(x, y, width, height, speed, isPlayer) {
-        this.bullets.push({
-            x, y, width, height, speed, isPlayer, active: true
-        });
+    clear() {
+        this.bullets = [];
+    }
+
+    add(bullet) {
+        this.bullets.push(bullet);
+    }
+
+    remove(bullet) {
+        const idx = this.bullets.indexOf(bullet);
+        if (idx >= 0) this.bullets.splice(idx, 1);
     }
 
     update(dt) {
         for (const b of this.bullets) {
-            if (!b.active) continue;
-            if (b.isPlayer) {
-                b.y -= b.speed * dt;
-            } else {
-                b.y += b.speed * dt;
-            }
-            // 画面外に出たら非活性
-            if (b.y < -b.height || b.y > this.canvasHeight) {
-                b.active = false;
-            }
+            b.y += b.speed * dt;
         }
-        // 非活性の弾を削除
-        this.bullets = this.bullets.filter(b => b.active);
+        // 画面外に出た弾を削除（speed が負=上向き、正=下向き）
+        this.bullets = this.bullets.filter(b => b.y > -50 && b.y < 700);
     }
 
     getPlayerBullets() {
-        return this.bullets.filter(b => b.isPlayer && b.active);
+        return this.bullets.filter(b => b.isPlayer);
     }
 
     getEnemyBullets() {
-        return this.bullets.filter(b => !b.isPlayer && b.active);
+        return this.bullets.filter(b => !b.isPlayer);
     }
 
     draw(ctx) {
         for (const b of this.bullets) {
-            if (!b.active) continue;
-            ctx.fillStyle = b.isPlayer ? '#ffff00' : '#ff0000';
+            ctx.fillStyle = b.isPlayer ? '#ffff00' : '#ff4444';
             ctx.fillRect(b.x, b.y, b.width, b.height);
         }
     }
