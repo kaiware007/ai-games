@@ -1,8 +1,8 @@
-import { InputManager } from './input.js?v=1777716047';
-import { Grid } from './grid.js?v=1777716047';
-import { MoleManager, MOLE_TYPES } from './mole_manager.js?v=1777716047';
-import { HitEffect } from './hit_effect.js?v=1777716047';
-import { HUD } from './hud.js?v=1777716047';
+import { InputManager } from './input.js?v=1777717899';
+import { Grid } from './grid.js?v=1777717899';
+import { MoleManager } from './mole_manager.js?v=1777717899';
+import { HitEffect } from './hit_effect.js?v=1777717899';
+import { HUD } from './hud.js?v=1777717899';
 
 export class Game {
   constructor(canvas) {
@@ -54,7 +54,6 @@ export class Game {
 
   getClickPos(clientX, clientY) {
     const rect = this.canvas.getBoundingClientRect();
-    // CSS表示サイズと内部サイズの違いを補正
     const scaleX = this.canvas.width / rect.width;
     const scaleY = this.canvas.height / rect.height;
     return {
@@ -94,23 +93,23 @@ export class Game {
     // グリッド外クリックは無視
     if (row < 0 || row >= dims.rows || col < 0 || col >= dims.cols) return;
 
-    const mole = this.moleManager.getMoleAt(row, col);
-    if (mole) {
+    const moleData = this.moleManager.getMoleAt(row, col);
+    if (moleData) {
       // モグラを叩いた
       const cell = this.grid.getCell(row, col);
       const cx = cell.x + cell.w / 2;
       const cy = cell.y + cell.h / 2;
 
-      const points = mole.type.points;
+      const points = moleData.mole.getPoints();
       this.score += points;
       this.totalHits++;
       this.effects.push(new HitEffect(cx, cy, points));
 
       // モグラを削除
-      const idx = this.moleManager.activeMoles.indexOf(mole);
+      const idx = this.moleManager.activeMoles.indexOf(moleData);
       if (idx >= 0) this.moleManager.activeMoles.splice(idx, 1);
     } else {
-      // ミス（モグラがいない穴を叩いた）
+      // ミス
       const missPoints = -5;
       this.score = Math.max(0, this.score + missPoints);
       const cell = this.grid.getCell(row, col);
@@ -167,13 +166,12 @@ export class Game {
       for (let col = 0; col < dims.cols; col++) {
         const cell = this.grid.getCell(row, col);
 
-        // マスの背景（穴）
+        // 穴
         ctx.fillStyle = '#654321';
         ctx.beginPath();
         ctx.ellipse(cell.x + cell.w / 2, cell.y + cell.h / 2, cell.w / 2, cell.h / 2.5, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // 穴の縁
         ctx.strokeStyle = '#3E2723';
         ctx.lineWidth = 3;
         ctx.stroke();
@@ -185,25 +183,31 @@ export class Game {
     const ctx = this.ctx;
     const moles = this.moleManager.getActiveMoles();
 
-    for (const mole of moles) {
-      const cell = this.grid.getCell(mole.row, mole.col);
+    for (const moleData of moles) {
+      const cell = this.grid.getCell(moleData.row, moleData.col);
       const cx = cell.x + cell.w / 2;
       const cy = cell.y + cell.h / 2;
 
-      // 出現アニメーション（フェードイン）
-      const fadeIn = Math.min(1, (mole.maxTimer - mole.timer) / 0.2);
-      const fadeOut = Math.min(1, mole.timer / 0.3);
+      // 出現アニメーション
+      const fadeIn = Math.min(1, (moleData.maxTimer - moleData.timer) / 0.2);
+      const fadeOut = Math.min(1, moleData.timer / 0.3);
       const alpha = Math.min(fadeIn, fadeOut);
 
       ctx.save();
       ctx.globalAlpha = alpha;
 
-      // モグラの体
       const moleRadius = cell.w / 2.5;
+      const mole = moleData.mole;
+      const typeName = mole.getTypeName();
+      const color = mole.getEmoji();
 
       // 体の色
-      let bodyColor = mole.type.color;
-      if (mole.type.name === 'ultra_rare') {
+      let bodyColor;
+      if (typeName === 'normal') {
+        bodyColor = '#8B4513';
+      } else if (typeName === 'rare') {
+        bodyColor = '#FFD700';
+      } else {
         const hue = (Date.now() / 10) % 360;
         bodyColor = `hsl(${hue}, 100%, 60%)`;
       }
@@ -226,8 +230,8 @@ export class Game {
       ctx.ellipse(cx, cy + 5, 5, 3, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // 種類に応じた装飾
-      if (mole.type.name === 'rare') {
+      // レア装飾
+      if (typeName === 'rare') {
         ctx.fillStyle = '#FFD700';
         ctx.beginPath();
         ctx.moveTo(cx - 12, cy - moleRadius + 5);
@@ -238,7 +242,7 @@ export class Game {
         ctx.strokeStyle = '#B8860B';
         ctx.lineWidth = 1;
         ctx.stroke();
-      } else if (mole.type.name === 'ultra_rare') {
+      } else if (typeName === 'ultra_rare') {
         const hue = (Date.now() / 50) % 360;
         ctx.strokeStyle = `hsl(${hue}, 100%, 70%)`;
         ctx.lineWidth = 3;

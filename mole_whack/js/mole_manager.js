@@ -1,20 +1,14 @@
-// モグラの種類と設定
-export const MOLE_TYPES = {
-  NORMAL: { name: 'normal', points: 10, duration: 2.0, emoji: '🐹', color: '#8B4513' },
-  RARE: { name: 'rare', points: 30, duration: 1.5, emoji: '👑', color: '#FFD700' },
-  ULTRA_RARE: { name: 'ultra_rare', points: 100, duration: 2.0, emoji: '✨', color: '#FF69B4' }
-};
+import { Mole, MOLE_TYPES } from './mole.js?v=1777717899';
 
 export class MoleManager {
   constructor(grid, gameDuration, ultraRareCount) {
     this.grid = grid;
     this.gameDuration = gameDuration;
     this.ultraRareCount = ultraRareCount;
-    this.activeMoles = []; // { row, col, type, timer, maxTimer }
+    this.activeMoles = []; // { row, col, mole(Mole), timer, maxTimer }
     this.spawnTimer = 0;
-    this.spawnInterval = 0.8;
     this.lastSpawnCell = -1;
-    this.ultraRareSlots = []; // 激レアの出現タイミング（秒単位）
+    this.ultraRareSlots = [];
     this.ultraRareUsed = 0;
     this.gameTime = 0;
   }
@@ -26,7 +20,7 @@ export class MoleManager {
     this.gameTime = 0;
     this.ultraRareUsed = 0;
 
-    // 激レアの出現タイミングをランダムに決定（ゲーム開始後5秒〜終了5秒前）
+    // 激レアの出現タイミングをランダムに決定
     this.ultraRareSlots = [];
     const minTime = 5;
     const maxTime = this.gameDuration - 5;
@@ -42,30 +36,25 @@ export class MoleManager {
     this.ultraRareSlots.sort((a, b) => a - b);
   }
 
-  // 現在時間に応じた出現間隔を計算
   getSpawnInterval() {
     const gt = this.gameTime;
     if (gt < 20) {
-      // 前半: ゆったり 1.2〜1.8秒
       return 1.2 + Math.random() * 0.6;
     } else if (gt < 40) {
-      // 中盤: やや速く 0.8〜1.4秒
       return 0.8 + Math.random() * 0.6;
     } else {
-      // 後半: 激速 0.5〜1.0秒
       return 0.5 + Math.random() * 0.5;
     }
   }
 
-  // 現在時間に応じた同時出現上限を計算
   getMaxActiveMoles() {
     const gt = this.gameTime;
     if (gt < 20) {
-      return 2; // 前半: 最大2匹
+      return 2;
     } else if (gt < 40) {
-      return 3; // 中盤: 最大3匹
+      return 3;
     } else {
-      return 5; // 後半: 最大5匹
+      return 5;
     }
   }
 
@@ -92,15 +81,13 @@ export class MoleManager {
     // 通常モグラの出現
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
-      // 同時出現上限をチェック
+      this.spawnTimer = this.getSpawnInterval();
       const maxActive = this.getMaxActiveMoles();
       if (this.activeMoles.length < maxActive) {
         if (!this.trySpawnNormalMole()) {
-          // 穴が埋まってたら少し待って再試行
           this.spawnTimer = 0.2;
         }
       } else {
-        // 上限に達してたら少し待つ
         this.spawnTimer = 0.3;
       }
     }
@@ -110,7 +97,6 @@ export class MoleManager {
     const { rows, cols } = this.grid.getDimensions();
     const totalCells = rows * cols;
 
-    // 空いてる穴のリストを作る
     const occupiedCells = new Set();
     for (const mole of this.activeMoles) {
       occupiedCells.add(mole.row * cols + mole.col);
@@ -124,10 +110,9 @@ export class MoleManager {
     }
 
     if (emptyCells.length === 0) {
-      return false; // 穴が全部埋まってる
+      return false;
     }
 
-    // 前回と同じ穴を避ける
     let candidates = emptyCells;
     if (this.lastSpawnCell >= 0 && emptyCells.length > 1) {
       candidates = emptyCells.filter(i => i !== this.lastSpawnCell);
@@ -145,7 +130,6 @@ export class MoleManager {
     const rand = Math.random();
     let moleType;
     if (rand < 0.15 && this.ultraRareUsed >= this.ultraRareSlots.length) {
-      // 激レアスロットを使い切った後は通常プロセスでも少し出る
       moleType = MOLE_TYPES.ULTRA_RARE;
     } else if (rand < 0.40) {
       moleType = MOLE_TYPES.RARE;
@@ -153,11 +137,13 @@ export class MoleManager {
       moleType = MOLE_TYPES.NORMAL;
     }
 
+    const mole = new Mole(moleType);
+
     this.activeMoles.push({
       row, col,
-      type: moleType,
-      timer: moleType.duration,
-      maxTimer: moleType.duration
+      mole,
+      timer: mole.getDuration(),
+      maxTimer: mole.getDuration()
     });
 
     return true;
@@ -167,7 +153,6 @@ export class MoleManager {
     const { rows, cols } = this.grid.getDimensions();
     const totalCells = rows * cols;
 
-    // 空いてる穴のリストを作る
     const occupiedCells = new Set();
     for (const mole of this.activeMoles) {
       occupiedCells.add(mole.row * cols + mole.col);
@@ -181,7 +166,7 @@ export class MoleManager {
     }
 
     if (emptyCells.length === 0) {
-      return; // 穴が全部埋まってる
+      return;
     }
 
     const cellIndex = emptyCells[Math.floor(Math.random() * emptyCells.length)];
@@ -189,11 +174,13 @@ export class MoleManager {
     const col = cellIndex % cols;
     this.lastSpawnCell = cellIndex;
 
+    const mole = new Mole(MOLE_TYPES.ULTRA_RARE);
+
     this.activeMoles.push({
       row, col,
-      type: MOLE_TYPES.ULTRA_RARE,
-      timer: MOLE_TYPES.ULTRA_RARE.duration,
-      maxTimer: MOLE_TYPES.ULTRA_RARE.duration
+      mole,
+      timer: mole.getDuration(),
+      maxTimer: mole.getDuration()
     });
   }
 
