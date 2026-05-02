@@ -1,0 +1,8 @@
+{
+  "id": "ci_test",
+  "title": "CI Test",
+  "description": "deploy/delete テスト用",
+  "engine": "javascript",
+  "created_at": "2026-05-02T13:50:27.577972",
+  "thumbnail": ""
+}
