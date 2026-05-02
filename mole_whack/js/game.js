@@ -1,6 +1,8 @@
-import { InputManager } from './input.js?v=1777724670';
-import { Grid } from './grid.js?v=1777724670';
-import { HUD } from './hud.js?v=1777724670';
+import { InputManager } from './input.js?v=1777726587';
+import { Grid } from './grid.js?v=1777726587';
+import { HUD } from './hud.js?v=1777726587';
+import { ParticleSystem } from './particle.js?v=1777726587';
+import { ScorePopupManager } from './score_popup.js?v=1777726587';
 
 export class Game {
     constructor() {
@@ -18,6 +20,8 @@ export class Game {
         // コンポーネント
         this.input = new InputManager(this.canvas);
         this.hud = new HUD(this.canvasWidth, this.canvasHeight);
+        this.particles = new ParticleSystem();
+        this.popups = new ScorePopupManager();
 
         // ゲーム状態
         this.state = 'title'; // title, countdown, playing, gameover
@@ -27,11 +31,11 @@ export class Game {
         this.timeLeft = 30;
         this.countdownValue = 3;
         this.countdownTimer = 0;
-        this.gameOverWait = 0; // ゲームオーバー後のタップ無視時間
+        this.gameOverWait = 0;
 
         // モグラ出現タイマー
         this.spawnTimer = 0;
-        this.spawnInterval = 1.0; // 初期出現間隔
+        this.spawnInterval = 1.0;
 
         // グリッド（画像読み込み後に作成）
         this.grid = null;
@@ -44,7 +48,6 @@ export class Game {
         this.moleImage.onload = () => {
             this.grid = new Grid(this.canvasWidth, this.canvasHeight, this.moleImage);
         };
-        // 画像読み込み失敗時はフォールバックでグリッド作成
         this.moleImage.onerror = () => {
             this.grid = new Grid(this.canvasWidth, this.canvasHeight, null);
         };
@@ -56,13 +59,11 @@ export class Game {
         this.canvas.width = this.canvasWidth;
         this.canvas.height = this.canvasHeight;
 
-        // HUDサイズ更新
         if (this.hud) {
             this.hud.canvasWidth = this.canvasWidth;
             this.hud.canvasHeight = this.canvasHeight;
         }
 
-        // グリッド再作成
         if (this.grid) {
             this.grid = new Grid(this.canvasWidth, this.canvasHeight, this.moleImage);
         }
@@ -70,7 +71,7 @@ export class Game {
 
     gameLoop() {
         const now = performance.now();
-        const dt = Math.min((now - this.lastTime) / 1000, 0.1); // 秒単位
+        const dt = Math.min((now - this.lastTime) / 1000, 0.1);
         this.lastTime = now;
 
         this.update(dt);
@@ -80,6 +81,10 @@ export class Game {
     }
 
     update(dt) {
+        // パーティクルとポップアップは全状態で更新
+        this.particles.update(dt);
+        this.popups.update(dt);
+
         switch (this.state) {
             case 'title':
                 this.handleTitleClick();
@@ -124,6 +129,10 @@ export class Game {
                 this.hud.drawGameOver(this.ctx, this.score, this.maxCombo);
                 break;
         }
+
+        // パーティクルとスコアポップアップは常に最前面に描画
+        this.particles.draw(this.ctx);
+        this.popups.draw(this.ctx);
     }
 
     handleTitleClick() {
@@ -144,7 +153,9 @@ export class Game {
         this.spawnTimer = 0;
         this.spawnInterval = 1.0;
 
-        // グリッドがまだない場合は作成
+        this.particles.clear();
+        this.popups.clear();
+
         if (!this.grid) {
             this.grid = new Grid(this.canvasWidth, this.canvasHeight, this.moleImage);
         }
@@ -158,23 +169,20 @@ export class Game {
             this.countdownValue--;
 
             if (this.countdownValue < 0) {
-                // カウントダウン完了→ゲーム開始
                 this.state = 'playing';
             }
         }
     }
 
     updatePlaying(dt) {
-        // 残り時間
         this.timeLeft -= dt;
         if (this.timeLeft <= 0) {
             this.timeLeft = 0;
             this.state = 'gameover';
-            this.gameOverWait = 2; // 2秒間タップ無視
+            this.gameOverWait = 2;
             return;
         }
 
-        // グリッド更新
         if (this.grid) {
             this.grid.update(dt);
         }
@@ -182,7 +190,6 @@ export class Game {
         // モグラ出現
         this.spawnTimer -= dt;
         if (this.spawnTimer <= 0) {
-            // 後半（15秒切ったら）出現頻度を上げる
             if (this.timeLeft <= 15) {
                 this.spawnInterval = 0.5;
             } else {
@@ -191,7 +198,6 @@ export class Game {
             this.spawnTimer = this.spawnInterval;
 
             if (this.grid) {
-                // 1〜2体出現
                 const count = Math.random() < 0.3 ? 2 : 1;
                 for (let i = 0; i < count; i++) {
                     this.grid.spawnMole(1.5 + Math.random());
@@ -203,24 +209,17 @@ export class Game {
         if (this.input.hasClick()) {
             const click = this.input.consumeClick();
             if (this.grid) {
-                const hitHole = this.grid.checkClick(click.x, click.y);
-                if (hitHole) {
-                    const mole = hitHole.mole;
-                    if (mole.hit()) {
-                        // 叩かった！
-                        this.combo++;
-                        if (this.combo > this.maxCombo) {
-                            this.maxCombo = this.combo;
-                        }
-                        // コンボボーナス付きスコア
-                        const bonus = Math.min(this.combo, 10);
-                        this.score += 10 * bonus;
-                    } else {
-                        // 外したor既に叩かれた→コンボリセット
-                        this.combo = 0;
+                const hitMole = this.grid.checkClick(click.x, click.y, this.particles, this.popups);
+                if (hitMole) {
+                    // 叩かった！
+                    this.combo++;
+                    if (this.combo > this.maxCombo) {
+                        this.maxCombo = this.combo;
                     }
+                    const bonus = Math.min(this.combo, 10);
+                    this.score += 10 * bonus;
                 } else {
-                    // 穴の外をクリック→コンボリセット
+                    // 外した→コンボリセット
                     this.combo = 0;
                 }
             }
@@ -228,17 +227,14 @@ export class Game {
     }
 
     updateGameOver(dt) {
-        // 2秒間タップ無視
         if (this.gameOverWait > 0) {
             this.gameOverWait -= dt;
-            // この間タップを消費する
             if (this.input.hasClick()) {
                 this.input.consumeClick();
             }
             return;
         }
 
-        // タップでタイトルに戻る
         if (this.input.hasClick()) {
             this.input.consumeClick();
             this.state = 'title';
@@ -246,5 +242,4 @@ export class Game {
     }
 }
 
-// ゲーム開始
 new Game();

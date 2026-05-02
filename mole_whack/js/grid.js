@@ -1,4 +1,4 @@
-import { Mole } from './mole.js?v=1777724670';
+import { Mole } from './mole.js?v=1777726587';
 
 export class Grid {
     constructor(canvasWidth, canvasHeight, moleImage) {
@@ -78,13 +78,16 @@ export class Grid {
         });
     }
 
-    checkClick(clickX, clickY) {
+    // クリック処理 — 成功したら true を返し、パーティクル・ポップアップを発生させる
+    checkClick(clickX, clickY, particles, popups) {
         for (const hole of this.holes) {
             if (hole.mole.isClicked(clickX, clickY)) {
-                return hole;
+                // モグラを叩く — パーティクルとスコアポップアップを発生
+                hole.mole.hit(particles, popups);
+                return true;
             }
         }
-        return null;
+        return false;
     }
 
     spawnMole(duration) {

@@ -1,3 +1,5 @@
+// モグラクラス
+
 export class Mole {
     constructor(column, row, holeX, holeY, holeRadius, moleImage) {
         this.column = column;
@@ -11,11 +13,11 @@ export class Mole {
         this.isUp = false;
         this.isHit = false;
         this.timer = 0;
-        this.maxTime = 1.5; // 出現時間
-        this.hitEffect = 0; // 叩かれた演出タイマー
+        this.maxTime = 1.5;
+        this.hitEffect = 0;
 
         // 出現アニメーション
-        this.yOffset = 0; // 穴からの高さ
+        this.yOffset = 0;
         this.targetYOffset = 0;
     }
 
@@ -36,10 +38,26 @@ export class Mole {
         this.hitEffect = 0;
     }
 
-    hit() {
+    // モグラを叩く処理 — パーティクルとスコアポップアップを発生させてモグラをすぐに消す
+    hit(particles, popups) {
         if (this.isHit) return false;
+
         this.isHit = true;
-        this.hitEffect = 0.5; // 0.5秒間演出
+
+        // モグラの中心位置
+        const x = this.holeX;
+        const y = this.holeY + this.yOffset;
+
+        // パーティクルを噴射（黄色・白・緑・オレンジ）
+        const colors = ['#FFD700', '#FFFFFF', '#90EE90', '#FFA500', '#FF6B6B'];
+        particles.emit(x, y, 20, colors);
+
+        // スコアポップアップ（+10 を表示）
+        popups.add(x, y - 20, '+10', '#FFD700');
+
+        // すぐにモグラを消す（hitEffect は短い演出時間）
+        this.hitEffect = 0.15;
+
         return true;
     }
 
@@ -75,13 +93,17 @@ export class Mole {
 
         ctx.save();
 
+        // 叩かれたら少し透明にする
+        if (this.isHit) {
+            ctx.globalAlpha = Math.max(0, this.hitEffect / 0.15);
+        }
+
         if (this.moleImage && this.moleImage.complete) {
             // 画像表示
             const imgSize = size * 2;
             ctx.drawImage(this.moleImage, x - imgSize / 2, y - imgSize / 2, imgSize, imgSize);
         } else {
             // フォールバック: 円+顔
-            // 体
             ctx.beginPath();
             ctx.arc(x, y, size, 0, Math.PI * 2);
             ctx.fillStyle = this.isHit ? '#FF6B6B' : '#8B4513';
