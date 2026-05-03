@@ -140,8 +140,7 @@ export class Player {
     levelUp() {
         this.level += 1;
         this.experienceToNext = Math.floor(10 * Math.pow(1.2, this.level - 1));
-        this.maxHp += 10;
-        this.hp = Math.min(this.hp + 20, this.maxHp);
+        // レベルUPでHPは増やさない（マックスHPアップバフで強化する仕組み）
     }
 
     getLevel() { return this.level; }
