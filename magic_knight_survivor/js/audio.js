@@ -10,7 +10,7 @@ export class AudioManager {
         this.bgm = new Howl({
             src: ['assets/bgm.m4a'],
             loop: true,
-            volume: 0.3,
+            volume: 0.1,
         });
     }
 
