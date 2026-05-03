@@ -1,4 +1,4 @@
-// 効果音・BGMマネージャー — 効果音はWeb Audio API、BGMはファイル再生
+// 効果音・BGMマネージャー — 効果音はWeb Audio API、BGMはGainNode経由で音量制御
 export class AudioManager {
     constructor() {
         this.ctx = null;
@@ -6,6 +6,7 @@ export class AudioManager {
         this.enabled = true;
         this.bgmPlaying = false;
         this.bgmElement = null;
+        this.bgmGain = null; // iOS対応: GainNodeで音量制御
     }
 
     // 初回ユーザー操作時に初期化
@@ -15,10 +16,25 @@ export class AudioManager {
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
             this.initialized = true;
 
-            // BGMオーディオ要素を作成
+            // iOS Web Audio アンロック: ユーザー操作中に無音バッファを再生してAudioContextを起動
+            // iOSではAudioContextが常にsuspendedで作成されるため、この処理が必要
+            this.ctx.resume();
+            const buf = this.ctx.createBuffer(1, 1, this.ctx.sampleRate);
+            const silentSrc = this.ctx.createBufferSource();
+            silentSrc.buffer = buf;
+            silentSrc.connect(this.ctx.destination);
+            silentSrc.start(0);
+
+            // BGMをGainNode経由でAudioContextに接続
+            // iOSではHTMLAudioElement.volumeが読み取り専用で無効なため、
+            // GainNodeを使ってWeb Audio API側で音量を制御する
             this.bgmElement = new Audio('assets/bgm.m4a');
             this.bgmElement.loop = true;
-            this.bgmElement.volume = 0.01;
+            this.bgmGain = this.ctx.createGain();
+            this.bgmGain.gain.value = 0.1;
+            const bgmSrc = this.ctx.createMediaElementSource(this.bgmElement);
+            bgmSrc.connect(this.bgmGain);
+            this.bgmGain.connect(this.ctx.destination);
         } catch (e) {
             this.enabled = false;
         }
@@ -45,9 +61,14 @@ export class AudioManager {
         osc.stop(this.ctx.currentTime + duration);
     }
 
-    // BGM開始 — ファイルからループ再生
+    // BGM開始 — GainNode経由でループ再生
     startBGM() {
-        if (!this.enabled || !this.bgmElement || this.bgmPlaying) return;
+        if (!this.enabled || !this.bgmElement) return;
+        // AudioContextが一時停止してbgmElementが止まった場合はリセット
+        if (this.bgmPlaying && this.bgmElement.paused) {
+            this.bgmPlaying = false;
+        }
+        if (this.bgmPlaying) return;
         if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
         this.stopBGM();
 
