@@ -1,12 +1,12 @@
-import { InputManager } from './input.js?v=1777825763';
-import { Player } from './player.js?v=1777825763';
-import { EnemyManager } from './enemy.js?v=1777825763';
-import { WeaponManager, WEAPON_DEFS, BUFF_DEFS } from './weapons.js?v=1777825763';
-import { ExpCrystal } from './exp_crystal.js?v=1777825763';
-import { HealItem } from './heal_item.js?v=1777825763';
-import { HUD } from './hud.js?v=1777825763';
-import { Camera } from './camera.js?v=1777825763';
-import { AudioManager } from './audio.js?v=1777825763';
+import { InputManager } from './input.js?v=1777826784';
+import { Player } from './player.js?v=1777826784';
+import { EnemyManager } from './enemy.js?v=1777826784';
+import { WeaponManager, WEAPON_DEFS, BUFF_DEFS } from './weapons.js?v=1777826784';
+import { ExpCrystal } from './exp_crystal.js?v=1777826784';
+import { HealItem } from './heal_item.js?v=1777826784';
+import { HUD } from './hud.js?v=1777826784';
+import { Camera } from './camera.js?v=1777826784';
+import { AudioManager } from './audio.js?v=1777826784';
 
 // ゲームクリア時間（秒）
 const GAME_CLEAR_TIME = 600; // 10分
