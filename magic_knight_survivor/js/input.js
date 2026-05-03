@@ -1,6 +1,7 @@
 export class InputManager {
-    constructor(canvas) {
+    constructor(canvas, gameStateRef) {
         this.canvas = canvas;
+        this.gameStateRef = gameStateRef; // () => 'title' | 'playing' | ...
         this.keys = {};
         this.touchActive = false;
         this.touchStartX = 0;
@@ -14,7 +15,11 @@ export class InputManager {
         window.addEventListener('keyup', (e) => { this.keys[e.key.toLowerCase()] = false; });
 
         canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
+            // タイトル画面・ゲームオーバー画面では preventDefault しない（クリック処理を通す）
+            const gs = this.gameStateRef ? this.gameStateRef() : 'playing';
+            if (gs === 'playing' || gs === 'levelup') {
+                e.preventDefault();
+            }
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
             this.touchActive = true;
@@ -25,15 +30,21 @@ export class InputManager {
         }, { passive: false });
 
         canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            const rect = canvas.getBoundingClientRect();
-            this.touchCurrentX = touch.clientX - rect.left;
-            this.touchCurrentY = touch.clientY - rect.top;
+            const gs = this.gameStateRef ? this.gameStateRef() : 'playing';
+            if (gs === 'playing') {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const rect = canvas.getBoundingClientRect();
+                this.touchCurrentX = touch.clientX - rect.left;
+                this.touchCurrentY = touch.clientY - rect.top;
+            }
         }, { passive: false });
 
         canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
+            const gs = this.gameStateRef ? this.gameStateRef() : 'playing';
+            if (gs === 'playing') {
+                e.preventDefault();
+            }
             this.touchActive = false;
         }, { passive: false });
     }

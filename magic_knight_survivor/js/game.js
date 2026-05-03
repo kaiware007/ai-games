@@ -1,17 +1,20 @@
-import { InputManager } from './input.js?v=1777795577';
-import { Player } from './player.js?v=1777795577';
-import { EnemyManager } from './enemy.js?v=1777795577';
-import { WeaponManager, WEAPON_DEFS } from './weapons.js?v=1777795577';
-import { ExpCrystal } from './exp_crystal.js?v=1777795577';
-import { HUD } from './hud.js?v=1777795577';
-import { Camera } from './camera.js?v=1777795577';
+import { InputManager } from './input.js?v=1777797243';
+import { Player } from './player.js?v=1777797243';
+import { EnemyManager } from './enemy.js?v=1777797243';
+import { WeaponManager, WEAPON_DEFS } from './weapons.js?v=1777797243';
+import { ExpCrystal } from './exp_crystal.js?v=1777797243';
+import { HUD } from './hud.js?v=1777797243';
+import { Camera } from './camera.js?v=1777797243';
 
 export class Game {
     constructor(canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
 
-        this.input = new InputManager(canvas);
+        // gameStateRef を InputManager に渡す（タイトル画面での preventDefault 回避用）
+        this.state = 'title'; // title, playing, paused, gameover, levelup
+        this.input = new InputManager(canvas, () => this.state);
+
         this.player = new Player(0, 0);
         this.enemyManager = new EnemyManager({});
         this.weaponManager = new WeaponManager(this.player);
@@ -21,10 +24,9 @@ export class Game {
         this.expCrystals = [];
         this.score = 0;
         this.time = 0;
-        this.state = 'title'; // title, playing, paused, gameover, levelup
         this.levelUpChoices = [];
 
-        // タップ/クリック処理
+        // クリック処理（PC・スマホ両対応）
         canvas.addEventListener('click', (e) => {
             const rect = canvas.getBoundingClientRect();
             const mx = e.clientX - rect.left;
@@ -32,16 +34,18 @@ export class Game {
             this.handleClick(mx, my);
         });
 
+        // タッチ処理（タイトル画面・ゲームオーバー・レベルアップ用）
         canvas.addEventListener('touchstart', (e) => {
-            if (this.state === 'levelup') {
-                e.preventDefault();
+            if (this.state === 'title' || this.state === 'gameover' || this.state === 'levelup') {
+                // InputManager の touchstart は preventDefault しないようになってるので、
+                // ここでも handleClick を呼ぶ
                 const touch = e.touches[0];
                 const rect = canvas.getBoundingClientRect();
                 const mx = touch.clientX - rect.left;
                 const my = touch.clientY - rect.top;
                 this.handleClick(mx, my);
             }
-        }, { passive: false });
+        }, { passive: true });
     }
 
     init() {
