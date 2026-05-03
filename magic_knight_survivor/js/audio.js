@@ -6,12 +6,14 @@ export class AudioManager {
         this.enabled = true;
         this.bgmPlaying = false;
         this.bgmElement = null;
-        this.bgmGain = null; // iOS対応: GainNodeで音量制御
+        this.bgmGain = null;
     }
 
     // 初回ユーザー操作時に初期化
     init() {
         if (this.initialized) return;
+
+        // AudioContext 作成 — 失敗したら全音声を無効化
         try {
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
             this.initialized = true;
@@ -24,19 +26,33 @@ export class AudioManager {
             silentSrc.buffer = buf;
             silentSrc.connect(this.ctx.destination);
             silentSrc.start(0);
+        } catch (e) {
+            this.enabled = false;
+            return;
+        }
 
-            // BGMをGainNode経由でAudioContextに接続
-            // iOSではHTMLAudioElement.volumeが読み取り専用で無効なため、
-            // GainNodeを使ってWeb Audio API側で音量を制御する
+        // BGM セットアップ — ここが失敗しても効果音(SFX)は動作させる
+        try {
             this.bgmElement = new Audio('assets/bgm.m4a');
             this.bgmElement.loop = true;
+
+            // GainNodeでBGM音量を制御 (iOSではHTMLAudioElement.volumeが無効なため)
             this.bgmGain = this.ctx.createGain();
-            this.bgmGain.gain.value = 0.1;
+            this.bgmGain.gain.value = 0.3; // BGM音量 30%
             const bgmSrc = this.ctx.createMediaElementSource(this.bgmElement);
             bgmSrc.connect(this.bgmGain);
             this.bgmGain.connect(this.ctx.destination);
         } catch (e) {
-            this.enabled = false;
+            // createMediaElementSource が失敗した場合はHTML Audio要素で代替
+            // この場合iOSではvolume制御が効かないが、SFXは引き続き動作する
+            try {
+                this.bgmElement = new Audio('assets/bgm.m4a');
+                this.bgmElement.loop = true;
+                this.bgmElement.volume = 0.3;
+            } catch (e2) {
+                this.bgmElement = null;
+            }
+            this.bgmGain = null;
         }
     }
 
