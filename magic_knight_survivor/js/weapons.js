@@ -529,6 +529,7 @@ export class WeaponManager {
     getWeapons() {
         return Object.keys(this.weapons).map(id => ({
             id,
+            type: 'weapon',
             level: this.weapons[id].level,
             ...WEAPON_DEFS[id]
         }));
@@ -537,6 +538,7 @@ export class WeaponManager {
     getBuffs() {
         return Object.keys(this.buffs).map(id => ({
             id,
+            type: 'buff',
             level: this.buffs[id],
             ...BUFF_DEFS[id]
         }));
