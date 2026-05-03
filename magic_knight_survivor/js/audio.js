@@ -1,4 +1,3 @@
-// 効果音・BGMマネージャー — 効果音はWeb Audio API、BGMはGainNode経由で音量制御
 export class AudioManager {
     constructor() {
         this.ctx = null;
@@ -6,95 +5,63 @@ export class AudioManager {
         this.enabled = true;
         this.bgmPlaying = false;
         this.bgmElement = null;
-        this.bgmGain = null;
     }
 
-    // 初回ユーザー操作時に初期化
     init() {
         if (this.initialized) return;
-
-        // AudioContext 作成 — 失敗したら全音声を無効化
+        // AudioContext 作成失敗時のみ全音声を無効化
         try {
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
             this.initialized = true;
-
-            // iOS Web Audio アンロック: ユーザー操作中に無音バッファを再生してAudioContextを起動
-            // iOSではAudioContextが常にsuspendedで作成されるため、この処理が必要
-            this.ctx.resume();
-            const buf = this.ctx.createBuffer(1, 1, this.ctx.sampleRate);
-            const silentSrc = this.ctx.createBufferSource();
-            silentSrc.buffer = buf;
-            silentSrc.connect(this.ctx.destination);
-            silentSrc.start(0);
+            this.ctx.resume(); // ユーザー操作中に resume を要求しておく
         } catch (e) {
             this.enabled = false;
             return;
         }
-
-        // BGM セットアップ — ここが失敗しても効果音(SFX)は動作させる
+        // BGM は HTML Audio 直結（AudioContext に依存しない）
         try {
             this.bgmElement = new Audio('assets/bgm.m4a');
             this.bgmElement.loop = true;
-
-            // GainNodeでBGM音量を制御 (iOSではHTMLAudioElement.volumeが無効なため)
-            this.bgmGain = this.ctx.createGain();
-            this.bgmGain.gain.value = 0.3; // BGM音量 30%
-            const bgmSrc = this.ctx.createMediaElementSource(this.bgmElement);
-            bgmSrc.connect(this.bgmGain);
-            this.bgmGain.connect(this.ctx.destination);
+            this.bgmElement.volume = 0.3; // BGM 30%
         } catch (e) {
-            // createMediaElementSource が失敗した場合はHTML Audio要素で代替
-            // この場合iOSではvolume制御が効かないが、SFXは引き続き動作する
-            try {
-                this.bgmElement = new Audio('assets/bgm.m4a');
-                this.bgmElement.loop = true;
-                this.bgmElement.volume = 0.3;
-            } catch (e2) {
-                this.bgmElement = null;
-            }
-            this.bgmGain = null;
+            // BGM だけ無効、SFX は動作継続
         }
     }
 
-    // 短めの音波を生成して再生するヘルパー
+    // AudioContext が running になってからコールバックを実行する
+    // suspended 状態でも ctx.resume().then() で確実に処理する
+    _ready(fn) {
+        if (!this.ctx) return;
+        if (this.ctx.state === 'running') {
+            fn();
+        } else {
+            this.ctx.resume().then(fn).catch(() => {});
+        }
+    }
+
     playTone(frequency, duration, type = 'sine', volume = 0.15) {
         if (!this.enabled || !this.ctx) return;
-        if (this.ctx.state === 'suspended') this.ctx.resume();
-
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-
-        osc.type = type;
-        osc.frequency.setValueAtTime(frequency, this.ctx.currentTime);
-
-        gain.gain.setValueAtTime(volume, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
-
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-
-        osc.start(this.ctx.currentTime);
-        osc.stop(this.ctx.currentTime + duration);
-    }
-
-    // BGM開始 — GainNode経由でループ再生
-    startBGM() {
-        if (!this.enabled || !this.bgmElement) return;
-        // AudioContextが一時停止してbgmElementが止まった場合はリセット
-        if (this.bgmPlaying && this.bgmElement.paused) {
-            this.bgmPlaying = false;
-        }
-        if (this.bgmPlaying) return;
-        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
-        this.stopBGM();
-
-        this.bgmPlaying = true;
-        this.bgmElement.play().catch(e => {
-            console.log('BGM再生失敗:', e);
+        this._ready(() => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(frequency, this.ctx.currentTime);
+            gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(this.ctx.currentTime);
+            osc.stop(this.ctx.currentTime + duration);
         });
     }
 
-    // BGM停止
+    startBGM() {
+        if (!this.enabled || !this.bgmElement || this.bgmPlaying) return;
+        this.stopBGM();
+        this.bgmPlaying = true;
+        this.bgmElement.play().catch(e => console.log('BGM再生失敗:', e));
+    }
+
     stopBGM() {
         this.bgmPlaying = false;
         if (this.bgmElement) {
@@ -103,96 +70,84 @@ export class AudioManager {
         }
     }
 
-    // レベルUP音 — 上昇するチャイム
     playLevelUp() {
         if (!this.enabled || !this.ctx) return;
-        if (this.ctx.state === 'suspended') this.ctx.resume();
-
-        const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
-        notes.forEach((freq, i) => {
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.1);
-            gain.gain.setValueAtTime(0, this.ctx.currentTime + i * 0.1);
-            gain.gain.linearRampToValueAtTime(0.15, this.ctx.currentTime + i * 0.1 + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + i * 0.1 + 0.3);
-            osc.connect(gain);
-            gain.connect(this.ctx.destination);
-            osc.start(this.ctx.currentTime + i * 0.1);
-            osc.stop(this.ctx.currentTime + i * 0.1 + 0.3);
+        this._ready(() => {
+            const notes = [523, 659, 784, 1047];
+            notes.forEach((freq, i) => {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.1);
+                gain.gain.setValueAtTime(0, this.ctx.currentTime + i * 0.1);
+                gain.gain.linearRampToValueAtTime(0.15, this.ctx.currentTime + i * 0.1 + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + i * 0.1 + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(this.ctx.currentTime + i * 0.1);
+                osc.stop(this.ctx.currentTime + i * 0.1 + 0.3);
+            });
         });
     }
 
-    // 敵撃破音 — 小さな爆発
     playHit() {
         if (!this.enabled || !this.ctx) return;
-        if (this.ctx.state === 'suspended') this.ctx.resume();
-
         this.playTone(150, 0.1, 'square', 0.08);
         this.playTone(80, 0.15, 'sawtooth', 0.05);
     }
 
-    // アイテム回収音 — ピンッ
     playCollect() {
         if (!this.enabled || !this.ctx) return;
-        if (this.ctx.state === 'suspended') this.ctx.resume();
-
         this.playTone(880, 0.08, 'sine', 0.1);
         this.playTone(1320, 0.12, 'sine', 0.08);
     }
 
-    // ダメージ音 — 低い衝撃
     playDamage() {
         if (!this.enabled || !this.ctx) return;
-        if (this.ctx.state === 'suspended') this.ctx.resume();
-
         this.playTone(100, 0.2, 'sawtooth', 0.12);
         this.playTone(60, 0.3, 'square', 0.06);
     }
 
-    // ゲームクリア音 — 勝利ファンファーレ風
     playGameClear() {
         this.stopBGM();
         if (!this.enabled || !this.ctx) return;
-        if (this.ctx.state === 'suspended') this.ctx.resume();
-
-        const notes = [523, 659, 784, 1047, 784, 1047];
-        const durations = [0.15, 0.15, 0.15, 0.3, 0.15, 0.4];
-        let offset = 0;
-        notes.forEach((freq, i) => {
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(freq, this.ctx.currentTime + offset);
-            gain.gain.setValueAtTime(0.1, this.ctx.currentTime + offset);
-            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + offset + durations[i]);
-            osc.connect(gain);
-            gain.connect(this.ctx.destination);
-            osc.start(this.ctx.currentTime + offset);
-            osc.stop(this.ctx.currentTime + offset + durations[i]);
-            offset += durations[i] * 0.7;
+        this._ready(() => {
+            const notes = [523, 659, 784, 1047, 784, 1047];
+            const durations = [0.15, 0.15, 0.15, 0.3, 0.15, 0.4];
+            let offset = 0;
+            notes.forEach((freq, i) => {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime + offset);
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime + offset);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + offset + durations[i]);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(this.ctx.currentTime + offset);
+                osc.stop(this.ctx.currentTime + offset + durations[i]);
+                offset += durations[i] * 0.7;
+            });
         });
     }
 
-    // ゲームオーバー音 — 下降音
     playGameOver() {
         this.stopBGM();
         if (!this.enabled || !this.ctx) return;
-        if (this.ctx.state === 'suspended') this.ctx.resume();
-
-        const notes = [400, 350, 300, 200];
-        notes.forEach((freq, i) => {
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.2);
-            gain.gain.setValueAtTime(0.1, this.ctx.currentTime + i * 0.2);
-            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + i * 0.2 + 0.3);
-            osc.connect(gain);
-            gain.connect(this.ctx.destination);
-            osc.start(this.ctx.currentTime + i * 0.2);
-            osc.stop(this.ctx.currentTime + i * 0.2 + 0.3);
+        this._ready(() => {
+            const notes = [400, 350, 300, 200];
+            notes.forEach((freq, i) => {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.2);
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime + i * 0.2);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + i * 0.2 + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(this.ctx.currentTime + i * 0.2);
+                osc.stop(this.ctx.currentTime + i * 0.2 + 0.3);
+            });
         });
     }
 }
