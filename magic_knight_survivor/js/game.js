@@ -1,12 +1,12 @@
-import { InputManager } from './input.js?v=1777820904';
-import { Player } from './player.js?v=1777820904';
-import { EnemyManager } from './enemy.js?v=1777820904';
-import { WeaponManager, WEAPON_DEFS, BUFF_DEFS } from './weapons.js?v=1777820904';
-import { ExpCrystal } from './exp_crystal.js?v=1777820904';
-import { HealItem } from './heal_item.js?v=1777820904';
-import { HUD } from './hud.js?v=1777820904';
-import { Camera } from './camera.js?v=1777820904';
-import { AudioManager } from './audio.js?v=1777820904';
+import { InputManager } from './input.js?v=1777822069';
+import { Player } from './player.js?v=1777822069';
+import { EnemyManager } from './enemy.js?v=1777822069';
+import { WeaponManager, WEAPON_DEFS, BUFF_DEFS } from './weapons.js?v=1777822069';
+import { ExpCrystal } from './exp_crystal.js?v=1777822069';
+import { HealItem } from './heal_item.js?v=1777822069';
+import { HUD } from './hud.js?v=1777822069';
+import { Camera } from './camera.js?v=1777822069';
+import { AudioManager } from './audio.js?v=1777822069';
 
 // ゲームクリア時間（秒）
 const GAME_CLEAR_TIME = 600; // 10分
@@ -39,7 +39,6 @@ export class Game {
         this.levelUpChoices = [];
 
         canvas.addEventListener('click', (e) => {
-            this.audio.init();
             const rect = canvas.getBoundingClientRect();
             const mx = e.clientX - rect.left;
             const my = e.clientY - rect.top;
@@ -47,7 +46,6 @@ export class Game {
         });
 
         canvas.addEventListener('touchstart', (e) => {
-            this.audio.init();
             if (this.state === 'title' || this.state === 'gameover' || this.state === 'levelup' || this.state === 'gameclear') {
                 const touch = e.touches[0];
                 const rect = canvas.getBoundingClientRect();
@@ -73,6 +71,8 @@ export class Game {
     }
 
     start() {
+        // ゲーム開始時にオーディオを初期化（効果音が即座に使えるように）
+        this.audio.init();
         this.init();
         this.state = 'playing';
         this.audio.startBGM();
