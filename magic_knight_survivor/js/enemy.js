@@ -23,7 +23,6 @@ export class EnemyManager {
         const y = playerY + Math.sin(angle) * dist;
 
         const types = ['zombie', 'skeleton', 'bat'];
-        // 後半に行くほど強い敵の出現率を上げる
         const type = types[Math.floor(Math.random() * Math.min(types.length, this.wave))];
 
         const enemy = {
@@ -64,30 +63,26 @@ export class EnemyManager {
         return base[type] || 10;
     }
 
-    // 時間経過による難易度上昇
+    // 時間経過による難易度上昇（倍率アップ版）
     getDifficultyMultiplier(gameTime) {
-        // gameTimeは秒
         if (gameTime < 120) return 1.0;    // 0-2分: 基本
-        if (gameTime < 240) return 1.5;    // 2-4分: 1.5倍
-        if (gameTime < 360) return 2.0;    // 4-6分: 2倍
-        if (gameTime < 480) return 2.5;    // 6-8分: 2.5倍
-        return 3.0;                        // 8-10分: 3倍
+        if (gameTime < 240) return 2.0;    // 2-4分: 2.0倍
+        if (gameTime < 360) return 3.0;    // 4-6分: 3.0倍
+        if (gameTime < 480) return 4.5;    // 6-8分: 4.5倍
+        return 7.0;                        // 8-10分: 7.0倍
     }
 
     update(dt, player, game) {
-        // 波の進行（30秒ごとにwave上昇）
         this.waveTimer += dt;
         if (this.waveTimer >= 30) {
             this.waveTimer = 0;
             this.wave += 1;
         }
 
-        // 難易度倍率を取得
         const difficultyMult = this.getDifficultyMultiplier(game.time);
 
-        // 敵スポーン（難易度に応じて頻度上昇）
         const baseSpawnRate = 2.0;
-        const spawnRate = Math.max(0.2, baseSpawnRate / difficultyMult - this.wave * 0.05);
+        const spawnRate = Math.max(0.15, baseSpawnRate / difficultyMult - this.wave * 0.05);
         const maxEnemies = Math.floor(100 + this.wave * 10 * difficultyMult);
 
         this.spawnTimer += dt;
@@ -96,7 +91,6 @@ export class EnemyManager {
             this.spawnEnemy(player.getX(), player.getY());
         }
 
-        // 敵更新
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const e = this.enemies[i];
             const dx = player.getX() - e.x;
@@ -108,7 +102,6 @@ export class EnemyManager {
                 e.y += (dy / dist) * e.speed * dt;
             }
 
-            // プレイヤーとの衝突
             if (dist < e.radius + player.radius) {
                 player.takeDamage(e.damage);
                 e.hitFlash = 0.2;
@@ -116,7 +109,6 @@ export class EnemyManager {
 
             if (e.hitFlash > 0) e.hitFlash -= dt;
 
-            // 画面外遠くなら削除
             const screenDist = Math.sqrt(
                 Math.pow(e.x - player.getX(), 2) + Math.pow(e.y - player.getY(), 2)
             );
@@ -139,7 +131,6 @@ export class EnemyManager {
             ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
             ctx.fill();
 
-            // HPバー
             if (e.hp < e.maxHp) {
                 const barWidth = e.radius * 2;
                 const barHeight = 3;

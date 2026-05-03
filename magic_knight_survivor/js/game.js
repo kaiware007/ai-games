@@ -1,14 +1,20 @@
-import { InputManager } from './input.js?v=1777813204';
-import { Player } from './player.js?v=1777813204';
-import { EnemyManager } from './enemy.js?v=1777813204';
-import { WeaponManager, WEAPON_DEFS, BUFF_DEFS } from './weapons.js?v=1777813204';
-import { ExpCrystal } from './exp_crystal.js?v=1777813204';
-import { HealItem } from './heal_item.js?v=1777813204';
-import { HUD } from './hud.js?v=1777813204';
-import { Camera } from './camera.js?v=1777813204';
+import { InputManager } from './input.js?v=1777815411';
+import { Player } from './player.js?v=1777815411';
+import { EnemyManager } from './enemy.js?v=1777815411';
+import { WeaponManager, WEAPON_DEFS, BUFF_DEFS } from './weapons.js?v=1777815411';
+import { ExpCrystal } from './exp_crystal.js?v=1777815411';
+import { HealItem } from './heal_item.js?v=1777815411';
+import { HUD } from './hud.js?v=1777815411';
+import { Camera } from './camera.js?v=1777815411';
 
 // ゲームクリア時間（秒）
 const GAME_CLEAR_TIME = 600; // 10分
+
+// 武器・バフの獲得上限
+const MAX_WEAPON_TYPES = 5;
+const MAX_BUFF_TYPES = 5;
+// 武器・バフのレベル上限
+const MAX_LEVEL = 5;
 
 export class Game {
     constructor(canvas) {
@@ -276,47 +282,131 @@ export class Game {
         ctx.fillText('タップまたはクリックしてリスタート', w / 2, h / 2 + 90);
     }
 
+    // 全武器・バフがレベル5かつ5種類持っているか判定
+    isFullyMaxed() {
+        const ownedWeapons = Object.keys(this.weaponManager.weapons);
+        const ownedBuffs = Object.keys(this.weaponManager.buffs);
+
+        if (ownedWeapons.length < MAX_WEAPON_TYPES || ownedBuffs.length < MAX_BUFF_TYPES) {
+            return false;
+        }
+
+        // 全武器がレベル5か
+        for (const id of ownedWeapons) {
+            if (this.weaponManager.weapons[id].level < MAX_LEVEL) return false;
+        }
+        // 全バフがレベル5か
+        for (const id of ownedBuffs) {
+            if (this.weaponManager.buffs[id] < MAX_LEVEL) return false;
+        }
+
+        return true;
+    }
+
     showLevelUp() {
         this.state = 'levelup';
+
+        // 全武器・バフがレベル5かつ5種類の場合は特殊選択肢
+        if (this.isFullyMaxed()) {
+            const choices = [
+                {
+                    id: 'score_bonus',
+                    name: '1000点ボーナス',
+                    desc: 'スコアを1000追加！',
+                    color: '#f1c40f',
+                    icon: '💎',
+                    currentLevel: 0,
+                    type: 'score_bonus'
+                },
+                {
+                    id: 'heal_full',
+                    name: '体力全回復',
+                    desc: 'HPを最大まで回復！',
+                    color: '#e74c3c',
+                    icon: '❤️',
+                    currentLevel: 0,
+                    type: 'heal_full'
+                }
+            ];
+            // ランダムに並び替え
+            choices.sort(() => Math.random() - 0.5);
+            this.levelUpChoices = choices;
+            this.hud.setMenuActive(true, choices);
+            return;
+        }
 
         // 武器IDリスト
         const weaponIds = Object.keys(WEAPON_DEFS);
         // バフIDリスト
         const buffIds = Object.keys(BUFF_DEFS);
 
-        const choices = [];
-
         // 既に持っている武器
         const ownedWeapons = Object.keys(this.weaponManager.weapons);
         // 既に持っているバフ
         const ownedBuffs = Object.keys(this.weaponManager.buffs);
 
-        // 未所持武器
-        const notOwnedWeapons = weaponIds.filter(id => !ownedWeapons.includes(id));
+        // 候補を作成
+        const choices = [];
 
-        // 武器とバフを混ぜてプールを作る
-        // 武器: 未所持を優先、バフはすべて候補
-        const weaponPool = notOwnedWeapons.length > 0 ? notOwnedWeapons : weaponIds;
-        const allPool = [...weaponPool, ...buffIds];
-
-        // ランダムに3つ選ぶ
-        const shuffled = allPool.sort(() => Math.random() - 0.5);
-        const selected = shuffled.slice(0, 3);
-
-        for (const id of selected) {
-            if (WEAPON_DEFS[id]) {
+        // 武器候補: 種類が5種類未満なら未所持も、5種類なら所持中のレベル5未満のみ
+        if (ownedWeapons.length < MAX_WEAPON_TYPES) {
+            // 未所持武器を優先
+            const notOwnedWeapons = weaponIds.filter(id => !ownedWeapons.includes(id));
+            const pool = notOwnedWeapons.length > 0 ? notOwnedWeapons : weaponIds.filter(id => this.weaponManager.weapons[id].level < MAX_LEVEL);
+            for (const id of pool) {
                 const def = WEAPON_DEFS[id];
-                const currentLevel = this.weaponManager.weapons[id] ? this.weaponManager.weapons[id].level : 0;
-                choices.push({ id, ...def, currentLevel, type: 'weapon' });
-            } else if (BUFF_DEFS[id]) {
-                const def = BUFF_DEFS[id];
-                const currentLevel = this.weaponManager.buffs[id] || 0;
-                choices.push({ id, ...def, currentLevel, type: 'buff' });
+                const currentLevel = ownedWeapons.includes(id) ? this.weaponManager.weapons[id].level : 0;
+                if (currentLevel < MAX_LEVEL) {
+                    choices.push({ id, ...def, currentLevel, type: 'weapon' });
+                }
+            }
+        } else {
+            // 5種類持ってる: レベル5未満のもののみ
+            for (const id of ownedWeapons) {
+                const def = WEAPON_DEFS[id];
+                const currentLevel = this.weaponManager.weapons[id].level;
+                if (currentLevel < MAX_LEVEL) {
+                    choices.push({ id, ...def, currentLevel, type: 'weapon' });
+                }
             }
         }
 
-        this.levelUpChoices = choices;
-        this.hud.setMenuActive(true, choices);
+        // バフ候補: 種類が5種類未満なら未所持も、5種類なら所持中のレベル5未満のみ
+        if (ownedBuffs.length < MAX_BUFF_TYPES) {
+            const notOwnedBuffs = buffIds.filter(id => !ownedBuffs.includes(id));
+            const pool = notOwnedBuffs.length > 0 ? notOwnedBuffs : ownedBuffs.filter(id => this.weaponManager.buffs[id] < MAX_LEVEL);
+            for (const id of pool) {
+                const def = BUFF_DEFS[id];
+                const currentLevel = ownedBuffs.includes(id) ? this.weaponManager.buffs[id] : 0;
+                if (currentLevel < MAX_LEVEL) {
+                    choices.push({ id, ...def, currentLevel, type: 'buff' });
+                }
+            }
+        } else {
+            // 5種類持ってる: レベル5未満のもののみ
+            for (const id of ownedBuffs) {
+                const def = BUFF_DEFS[id];
+                const currentLevel = this.weaponManager.buffs[id];
+                if (currentLevel < MAX_LEVEL) {
+                    choices.push({ id, ...def, currentLevel, type: 'buff' });
+                }
+            }
+        }
+
+        // 候補が3つ未満ならランダムに重複を含めて3つに
+        if (choices.length < 3) {
+            while (choices.length < 3) {
+                const pick = choices[Math.floor(Math.random() * choices.length)];
+                choices.push({ ...pick });
+            }
+        }
+
+        // ランダムに3つ選ぶ
+        const shuffled = choices.sort(() => Math.random() - 0.5);
+        const selected = shuffled.slice(0, 3);
+
+        this.levelUpChoices = selected;
+        this.hud.setMenuActive(true, selected);
     }
 
     selectUpgrade(choice) {
@@ -324,6 +414,10 @@ export class Game {
             this.weaponManager.addWeapon(choice.id);
         } else if (choice.type === 'buff') {
             this.weaponManager.addBuff(choice.id);
+        } else if (choice.type === 'score_bonus') {
+            this.score += 1000;
+        } else if (choice.type === 'heal_full') {
+            this.player.hp = this.player.maxHp;
         }
         this.hud.setMenuActive(false);
         this.state = 'playing';
@@ -338,8 +432,8 @@ export class Game {
         const crystal = new ExpCrystal(enemy.x, enemy.y, expValue);
         this.expCrystals.push(crystal);
 
-        // 体力回復アイテムを5%の確率でドロップ
-        if (Math.random() < 0.05) {
+        // 体力回復アイテムを2%の確率でドロップ
+        if (Math.random() < 0.02) {
             const healAmount = 20;
             const healItem = new HealItem(enemy.x, enemy.y, healAmount);
             this.healItems.push(healItem);
