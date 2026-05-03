@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>マジックナイト・サバイバー</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #0a0a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+        canvas {
+            display: block;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <script type="module" src="js/game.js?v=1777795577"></script>
+    <script type="module">
+        import { Game } from './js/game.js?v=1777795577';
+
+        const canvas = document.getElementById('gameCanvas');
+
+        // キャンバスサイズ設定
+        function resize() {
+            const maxW = window.innerWidth;
+            const maxH = window.innerHeight;
+            const aspect = 4 / 3;
+
+            let w = maxW;
+            let h = w / aspect;
+
+            if (h > maxH) {
+                h = maxH;
+                w = h * aspect;
+            }
+
+            canvas.width = Math.floor(w);
+            canvas.height = Math.floor(h);
+        }
+
+        resize();
+        window.addEventListener('resize', resize);
+
+        const game = new Game(canvas);
+
+        let lastTime = performance.now();
+
+        function gameLoop(currentTime) {
+            const dt = Math.min((currentTime - lastTime) / 1000, 0.05);
+            lastTime = currentTime;
+
+            game.update(dt);
+            game.draw();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
