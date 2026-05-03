@@ -1,11 +1,11 @@
-// 効果音・BGMマネージャー — Web Audio APIで生成する（外部ファイル不要）
+// 効果音・BGMマネージャー — 効果音はWeb Audio API、BGMはファイル再生
 export class AudioManager {
     constructor() {
         this.ctx = null;
         this.initialized = false;
         this.enabled = true;
         this.bgmPlaying = false;
-        this.bgmNodes = [];
+        this.bgmElement = null;
     }
 
     // 初回ユーザー操作時に初期化
@@ -14,6 +14,11 @@ export class AudioManager {
         try {
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
             this.initialized = true;
+
+            // BGMオーディオ要素を作成
+            this.bgmElement = new Audio('assets/bgm.m4a');
+            this.bgmElement.loop = true;
+            this.bgmElement.volume = 0.3;
         } catch (e) {
             this.enabled = false;
         }
@@ -40,105 +45,25 @@ export class AudioManager {
         osc.stop(this.ctx.currentTime + duration);
     }
 
-    // BGM開始 — ファンタジー風のループBGM
+    // BGM開始 — ファイルからループ再生
     startBGM() {
-        if (!this.enabled || !this.ctx || this.bgmPlaying) return;
-        if (this.ctx.state === 'suspended') this.ctx.resume();
+        if (!this.enabled || !this.bgmElement || this.bgmPlaying) return;
+        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
         this.stopBGM();
 
         this.bgmPlaying = true;
-
-        // シンプルなループBGM — パッド＋メロディ
-        const loopDuration = 8; // 8秒ループ
-
-        // パッド（ベース）
-        const padGain = this.ctx.createGain();
-        padGain.gain.setValueAtTime(0.04, this.ctx.currentTime);
-        padGain.connect(this.ctx.destination);
-        this.bgmNodes.push(padGain);
-
-        const padNotes = [130.81, 164.81, 196.00, 261.63]; // C3, E3, G3, C4
-        padNotes.forEach((freq) => {
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-            osc.connect(padGain);
-            osc.start(this.ctx.currentTime);
-            this.bgmNodes.push(osc);
+        this.bgmElement.play().catch(e => {
+            console.log('BGM再生失敗:', e);
         });
-
-        // メロディループ
-        const melodyGain = this.ctx.createGain();
-        melodyGain.gain.setValueAtTime(0.06, this.ctx.currentTime);
-        melodyGain.connect(this.ctx.destination);
-        this.bgmNodes.push(melodyGain);
-
-        // メロディパターン（8小節）
-        const melodyPattern = [
-            { freq: 523.25, dur: 0.5 }, // C5
-            { freq: 587.33, dur: 0.5 }, // D5
-            { freq: 659.25, dur: 0.5 }, // E5
-            { freq: 523.25, dur: 0.5 }, // C5
-            { freq: 783.99, dur: 0.5 }, // G5
-            { freq: 659.25, dur: 0.5 }, // E5
-            { freq: 587.33, dur: 1.0 }, // D5
-            { freq: 523.25, dur: 1.0 }, // C5
-            { freq: 493.88, dur: 0.5 }, // B4
-            { freq: 523.25, dur: 0.5 }, // C5
-            { freq: 587.33, dur: 0.5 }, // D5
-            { freq: 659.25, dur: 0.5 }, // E5
-            { freq: 783.99, dur: 0.5 }, // G5
-            { freq: 659.25, dur: 0.5 }, // E5
-            { freq: 587.33, dur: 0.5 }, // D5
-            { freq: 523.25, dur: 0.5 }, // C5
-        ];
-
-        const scheduleMelodyLoop = (startTime) => {
-            if (!this.bgmPlaying) return;
-
-            let time = startTime;
-            melodyPattern.forEach((note) => {
-                const osc = this.ctx.createOscillator();
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(note.freq, time);
-
-                const noteGain = this.ctx.createGain();
-                noteGain.gain.setValueAtTime(0, time);
-                noteGain.gain.linearRampToValueAtTime(0.06, time + 0.02);
-                noteGain.gain.exponentialRampToValueAtTime(0.001, time + note.dur * 0.9);
-
-                osc.connect(noteGain);
-                noteGain.connect(this.ctx.destination);
-
-                osc.start(time);
-                osc.stop(time + note.dur);
-                time += note.dur;
-            });
-
-            // 次のループをスケジュール
-            const nextLoopTime = startTime + loopDuration;
-            if (this.bgmPlaying) {
-                this.bgmLoopTimeout = setTimeout(() => scheduleMelodyLoop(nextLoopTime), (nextLoopTime - this.ctx.currentTime) * 1000 - 100);
-            }
-        };
-
-        scheduleMelodyLoop(this.ctx.currentTime);
     }
 
     // BGM停止
     stopBGM() {
         this.bgmPlaying = false;
-        if (this.bgmLoopTimeout) {
-            clearTimeout(this.bgmLoopTimeout);
-            this.bgmLoopTimeout = null;
+        if (this.bgmElement) {
+            this.bgmElement.pause();
+            this.bgmElement.currentTime = 0;
         }
-        this.bgmNodes.forEach(node => {
-            try {
-                if (node.stop) node.stop();
-                node.disconnect();
-            } catch (e) {}
-        });
-        this.bgmNodes = [];
     }
 
     // レベルUP音 — 上昇するチャイム
@@ -167,7 +92,6 @@ export class AudioManager {
         if (!this.enabled || !this.ctx) return;
         if (this.ctx.state === 'suspended') this.ctx.resume();
 
-        // ノイズ風 — 短めの低い音
         this.playTone(150, 0.1, 'square', 0.08);
         this.playTone(80, 0.15, 'sawtooth', 0.05);
     }
