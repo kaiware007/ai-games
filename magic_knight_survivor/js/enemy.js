@@ -103,7 +103,12 @@ export class EnemyManager {
             }
 
             if (dist < e.radius + player.radius) {
+                const wasInvulnerable = player.invulnerable > 0;
                 player.takeDamage(e.damage);
+                // ダメージが実際に通ったら効果音を鳴らす
+                if (!wasInvulnerable && player.invulnerable > 0) {
+                    game.onPlayerDamaged();
+                }
                 e.hitFlash = 0.2;
             }
 

@@ -1,6 +1,10 @@
 // ゲームクリア時間（秒）
 const GAME_CLEAR_TIME = 600;
 
+// 武器・バフの表示色
+const WEAPON_COLOR = '#FF9800'; // オレンジ
+const BUFF_COLOR = '#8BC34A';   // 黄緑
+
 export class HUD {
     constructor(canvas) {
         this.canvas = canvas;
@@ -60,16 +64,17 @@ export class HUD {
         const seconds = Math.floor(remaining % 60);
         ctx.fillText(`Time: ${minutes}:${seconds.toString().padStart(2, '0')}`, w - 10, 36);
 
-        // 武器情報（右下）
+        // 武器情報（右下）— 武器はオレンジ、バフは黄緑
         const weapons = game.weaponManager.getWeapons();
         const buffs = game.weaponManager.getBuffs();
         const allItems = [...weapons, ...buffs];
         if (allItems.length > 0) {
             ctx.textAlign = 'right';
             ctx.font = '11px monospace';
-            ctx.fillStyle = 'rgba(255,255,255,0.7)';
             allItems.forEach((item, i) => {
                 const prefix = item.type === 'buff' ? '★' : '⚔';
+                const color = item.type === 'buff' ? BUFF_COLOR : WEAPON_COLOR;
+                ctx.fillStyle = color;
                 ctx.fillText(`${prefix}${item.name} Lv.${item.level}`, w - 10, 58 + i * 14);
             });
         }
@@ -129,8 +134,9 @@ export class HUD {
                 ctx.fillText(choice.icon, x + cardWidth / 2, y + 46);
             }
 
-            // 名前
-            ctx.fillStyle = '#fff';
+            // 名前 — 武器はオレンジ、バフは黄緑
+            const nameColor = choice.type === 'buff' ? BUFF_COLOR : WEAPON_COLOR;
+            ctx.fillStyle = nameColor;
             ctx.font = 'bold 12px monospace';
             ctx.textAlign = 'center';
             const nameLine = choice.type === 'buff' ? `★ ${choice.name}` : choice.name;
@@ -147,11 +153,11 @@ export class HUD {
 
             // レベル表示
             if (choice.currentLevel > 0) {
-                ctx.fillStyle = '#f1c40f';
+                ctx.fillStyle = nameColor;
                 ctx.font = 'bold 12px monospace';
                 ctx.fillText(`強化! Lv.${choice.currentLevel} → Lv.${choice.currentLevel + 1}`, x + cardWidth / 2, y + 165);
             } else {
-                ctx.fillStyle = '#2ecc71';
+                ctx.fillStyle = nameColor;
                 ctx.font = 'bold 12px monospace';
                 ctx.fillText(choice.type === 'buff' ? '新規バフ!' : '新規獲得!', x + cardWidth / 2, y + 165);
             }

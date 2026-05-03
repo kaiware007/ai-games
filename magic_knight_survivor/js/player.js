@@ -59,6 +59,7 @@ export class Player {
             if (dist < this.radius + 8) {
                 this.addExperience(c.getValue());
                 crystals.splice(i, 1);
+                game.onItemCollected();
             } else if (dist < pickupRange) {
                 const pullSpeed = 200;
                 const pullDx = -dx / dist * pullSpeed * dt;
@@ -79,6 +80,7 @@ export class Player {
                 const healAmount = item.getHealAmount() + this.healBonus;
                 this.hp = Math.min(this.hp + healAmount, this.maxHp);
                 healItems.splice(i, 1);
+                game.onItemCollected();
             } else if (dist < pickupRange) {
                 const pullSpeed = 200;
                 const pullDx = -dx / dist * pullSpeed * dt;
@@ -140,7 +142,6 @@ export class Player {
     levelUp() {
         this.level += 1;
         this.experienceToNext = Math.floor(10 * Math.pow(1.2, this.level - 1));
-        // レベルUPでHPは増やさない（マックスHPアップバフで強化する仕組み）
     }
 
     getLevel() { return this.level; }
