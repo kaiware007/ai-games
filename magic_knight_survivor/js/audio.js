@@ -18,7 +18,7 @@ export class AudioManager {
             // BGMオーディオ要素を作成
             this.bgmElement = new Audio('assets/bgm.m4a');
             this.bgmElement.loop = true;
-            this.bgmElement.volume = 0.3;
+            this.bgmElement.volume = 0.1;
         } catch (e) {
             this.enabled = false;
         }
