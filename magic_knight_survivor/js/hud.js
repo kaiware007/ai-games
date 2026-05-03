@@ -1,3 +1,6 @@
+// ゲームクリア時間（秒）
+const GAME_CLEAR_TIME = 600;
+
 export class HUD {
     constructor(canvas) {
         this.canvas = canvas;
@@ -52,9 +55,10 @@ export class HUD {
         ctx.textAlign = 'right';
         ctx.fillText(`Score: ${game.score}`, w - 10, 18);
 
-        // タイマー
-        const minutes = Math.floor(game.time / 60);
-        const seconds = Math.floor(game.time % 60);
+        // タイマー（残り時間表示）
+        const remaining = Math.max(0, GAME_CLEAR_TIME - game.time);
+        const minutes = Math.floor(remaining / 60);
+        const seconds = Math.floor(remaining % 60);
         ctx.fillText(`Time: ${minutes}:${seconds.toString().padStart(2, '0')}`, w - 10, 36);
 
         // 武器情報（右下）

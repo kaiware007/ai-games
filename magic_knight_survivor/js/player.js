@@ -51,6 +51,27 @@ export class Player {
                 c.y += pullDy;
             }
         }
+
+        // 体力回復アイテムの収集
+        const healItems = game.healItems;
+        for (let i = healItems.length - 1; i >= 0; i--) {
+            const item = healItems[i];
+            const dx = item.getX() - this.x;
+            const dy = item.getY() - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < this.radius + item.radius) {
+                // HP回復
+                this.hp = Math.min(this.hp + item.getHealAmount(), this.maxHp);
+                healItems.splice(i, 1);
+            } else if (dist < 80) {
+                // 磁石効果：近づくと吸い寄せられる
+                const pullSpeed = 200;
+                const pullDx = -dx / dist * pullSpeed * dt;
+                const pullDy = -dy / dist * pullSpeed * dt;
+                item.x += pullDx;
+                item.y += pullDy;
+            }
+        }
     }
 
     draw(ctx, camera) {

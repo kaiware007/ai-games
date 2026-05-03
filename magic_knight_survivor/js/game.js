@@ -1,10 +1,14 @@
-import { InputManager } from './input.js?v=1777797243';
-import { Player } from './player.js?v=1777797243';
-import { EnemyManager } from './enemy.js?v=1777797243';
-import { WeaponManager, WEAPON_DEFS } from './weapons.js?v=1777797243';
-import { ExpCrystal } from './exp_crystal.js?v=1777797243';
-import { HUD } from './hud.js?v=1777797243';
-import { Camera } from './camera.js?v=1777797243';
+import { InputManager } from './input.js?v=1777799718';
+import { Player } from './player.js?v=1777799718';
+import { EnemyManager } from './enemy.js?v=1777799718';
+import { WeaponManager, WEAPON_DEFS } from './weapons.js?v=1777799718';
+import { ExpCrystal } from './exp_crystal.js?v=1777799718';
+import { HealItem } from './heal_item.js?v=1777799718';
+import { HUD } from './hud.js?v=1777799718';
+import { Camera } from './camera.js?v=1777799718';
+
+// ゲームクリア時間（秒）
+const GAME_CLEAR_TIME = 600; // 10分
 
 export class Game {
     constructor(canvas) {
@@ -12,7 +16,7 @@ export class Game {
         this.ctx = canvas.getContext('2d');
 
         // gameStateRef を InputManager に渡す（タイトル画面での preventDefault 回避用）
-        this.state = 'title'; // title, playing, paused, gameover, levelup
+        this.state = 'title'; // title, playing, paused, gameover, levelup, gameclear
         this.input = new InputManager(canvas, () => this.state);
 
         this.player = new Player(0, 0);
@@ -22,6 +26,7 @@ export class Game {
         this.camera = new Camera(canvas.width, canvas.height);
 
         this.expCrystals = [];
+        this.healItems = []; // 体力回復アイテム
         this.score = 0;
         this.time = 0;
         this.levelUpChoices = [];
@@ -34,11 +39,9 @@ export class Game {
             this.handleClick(mx, my);
         });
 
-        // タッチ処理（タイトル画面・ゲームオーバー・レベルアップ用）
+        // タッチ処理（タイトル画面・ゲームオーバー・レベルアップ・ゲームクリア用）
         canvas.addEventListener('touchstart', (e) => {
-            if (this.state === 'title' || this.state === 'gameover' || this.state === 'levelup') {
-                // InputManager の touchstart は preventDefault しないようになってるので、
-                // ここでも handleClick を呼ぶ
+            if (this.state === 'title' || this.state === 'gameover' || this.state === 'levelup' || this.state === 'gameclear') {
                 const touch = e.touches[0];
                 const rect = canvas.getBoundingClientRect();
                 const mx = touch.clientX - rect.left;
@@ -57,6 +60,7 @@ export class Game {
         // 初期武器：マジックボウル
         this.weaponManager.addWeapon('magic_bowl');
         this.expCrystals = [];
+        this.healItems = [];
         this.score = 0;
         this.time = 0;
         this.hud.setMenuActive(false);
@@ -78,6 +82,11 @@ export class Game {
             return;
         }
 
+        if (this.state === 'gameclear') {
+            this.start();
+            return;
+        }
+
         if (this.state === 'levelup') {
             const idx = this.hud.getMenuSelection(mx, my);
             if (idx >= 0 && idx < this.levelUpChoices.length) {
@@ -93,13 +102,19 @@ export class Game {
         this.input.update();
         this.time += dt;
 
+        // ゲームクリアチェック（10分生存）
+        if (this.time >= GAME_CLEAR_TIME) {
+            this.state = 'gameclear';
+            return;
+        }
+
         // プレイヤー更新
         this.player.update(dt, this.input, this);
 
         // カメラ更新
         this.camera.update(this.player.getX(), this.player.getY());
 
-        // 敵更新
+        // 敵更新（難易度パラメータを渡す）
         this.enemyManager.update(dt, this.player, this);
 
         // 武器更新
@@ -108,6 +123,14 @@ export class Game {
         // 経験値クリスタル更新
         for (const c of this.expCrystals) {
             c.update(dt);
+        }
+
+        // 体力回復アイテム更新
+        for (let i = this.healItems.length - 1; i >= 0; i--) {
+            this.healItems[i].update(dt);
+            if (!this.healItems[i].isAlive()) {
+                this.healItems.splice(i, 1);
+            }
         }
 
         // プレイヤー死亡チェック
@@ -144,6 +167,11 @@ export class Game {
         // グリッド背景
         this.drawGrid(ctx);
 
+        // 体力回復アイテム
+        for (const item of this.healItems) {
+            item.draw(ctx, this.camera);
+        }
+
         // 経験値クリスタル
         for (const c of this.expCrystals) {
             c.draw(ctx, this.camera);
@@ -171,6 +199,11 @@ export class Game {
         // ゲームオーバー
         if (this.state === 'gameover') {
             this.drawGameOver(ctx);
+        }
+
+        // ゲームクリア
+        if (this.state === 'gameclear') {
+            this.drawGameClear(ctx);
         }
     }
 
@@ -211,7 +244,7 @@ export class Game {
 
         ctx.fillStyle = '#fff';
         ctx.font = '14px monospace';
-        ctx.fillText('敵を倒して武器を強化して生き残れ！', w / 2, h / 2 + 20);
+        ctx.fillText('10分間生存して生き残れ！', w / 2, h / 2 + 20);
 
         ctx.fillStyle = '#3498db';
         ctx.font = '16px monospace';
@@ -245,6 +278,32 @@ export class Game {
         ctx.fillStyle = '#3498db';
         ctx.font = '14px monospace';
         ctx.fillText('タップまたはクリックしてリスタート', w / 2, h / 2 + 100);
+    }
+
+    drawGameClear(ctx) {
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.fillStyle = '#2ecc71';
+        ctx.font = 'bold 28px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('GAME CLEAR!', w / 2, h / 2 - 50);
+
+        ctx.fillStyle = '#f1c40f';
+        ctx.font = '18px monospace';
+        ctx.fillText('10分間生存に成功した！', w / 2, h / 2 - 15);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '16px monospace';
+        ctx.fillText(`最終スコア: ${this.score}`, w / 2, h / 2 + 20);
+        ctx.fillText(`到達レベル: ${this.player.level}`, w / 2, h / 2 + 45);
+
+        ctx.fillStyle = '#3498db';
+        ctx.font = '14px monospace';
+        ctx.fillText('タップまたはクリックしてリスタート', w / 2, h / 2 + 90);
     }
 
     showLevelUp() {
@@ -300,6 +359,13 @@ export class Game {
         const expValue = Math.max(1, Math.floor(Math.random() * 3) + 1);
         const crystal = new ExpCrystal(enemy.x, enemy.y, expValue);
         this.expCrystals.push(crystal);
+
+        // 体力回復アイテムを5%の確率でドロップ
+        if (Math.random() < 0.05) {
+            const healAmount = 20;
+            const healItem = new HealItem(enemy.x, enemy.y, healAmount);
+            this.healItems.push(healItem);
+        }
     }
 
     gameOver() {
