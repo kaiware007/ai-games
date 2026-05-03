@@ -1,11 +1,11 @@
-import { InputManager } from './input.js?v=1777799718';
-import { Player } from './player.js?v=1777799718';
-import { EnemyManager } from './enemy.js?v=1777799718';
-import { WeaponManager, WEAPON_DEFS } from './weapons.js?v=1777799718';
-import { ExpCrystal } from './exp_crystal.js?v=1777799718';
-import { HealItem } from './heal_item.js?v=1777799718';
-import { HUD } from './hud.js?v=1777799718';
-import { Camera } from './camera.js?v=1777799718';
+import { InputManager } from './input.js?v=1777813204';
+import { Player } from './player.js?v=1777813204';
+import { EnemyManager } from './enemy.js?v=1777813204';
+import { WeaponManager, WEAPON_DEFS, BUFF_DEFS } from './weapons.js?v=1777813204';
+import { ExpCrystal } from './exp_crystal.js?v=1777813204';
+import { HealItem } from './heal_item.js?v=1777813204';
+import { HUD } from './hud.js?v=1777813204';
+import { Camera } from './camera.js?v=1777813204';
 
 // ゲームクリア時間（秒）
 const GAME_CLEAR_TIME = 600; // 10分
@@ -15,8 +15,7 @@ export class Game {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
 
-        // gameStateRef を InputManager に渡す（タイトル画面での preventDefault 回避用）
-        this.state = 'title'; // title, playing, paused, gameover, levelup, gameclear
+        this.state = 'title';
         this.input = new InputManager(canvas, () => this.state);
 
         this.player = new Player(0, 0);
@@ -26,12 +25,11 @@ export class Game {
         this.camera = new Camera(canvas.width, canvas.height);
 
         this.expCrystals = [];
-        this.healItems = []; // 体力回復アイテム
+        this.healItems = [];
         this.score = 0;
         this.time = 0;
         this.levelUpChoices = [];
 
-        // クリック処理（PC・スマホ両対応）
         canvas.addEventListener('click', (e) => {
             const rect = canvas.getBoundingClientRect();
             const mx = e.clientX - rect.left;
@@ -39,7 +37,6 @@ export class Game {
             this.handleClick(mx, my);
         });
 
-        // タッチ処理（タイトル画面・ゲームオーバー・レベルアップ・ゲームクリア用）
         canvas.addEventListener('touchstart', (e) => {
             if (this.state === 'title' || this.state === 'gameover' || this.state === 'levelup' || this.state === 'gameclear') {
                 const touch = e.touches[0];
@@ -57,7 +54,6 @@ export class Game {
         this.player.y = 0;
         this.enemyManager.init();
         this.weaponManager.init();
-        // 初期武器：マジックボウル
         this.weaponManager.addWeapon('magic_bowl');
         this.expCrystals = [];
         this.healItems = [];
@@ -90,7 +86,7 @@ export class Game {
         if (this.state === 'levelup') {
             const idx = this.hud.getMenuSelection(mx, my);
             if (idx >= 0 && idx < this.levelUpChoices.length) {
-                this.selectWeapon(this.levelUpChoices[idx].id);
+                this.selectUpgrade(this.levelUpChoices[idx]);
             }
             return;
         }
@@ -102,30 +98,20 @@ export class Game {
         this.input.update();
         this.time += dt;
 
-        // ゲームクリアチェック（10分生存）
         if (this.time >= GAME_CLEAR_TIME) {
             this.state = 'gameclear';
             return;
         }
 
-        // プレイヤー更新
         this.player.update(dt, this.input, this);
-
-        // カメラ更新
         this.camera.update(this.player.getX(), this.player.getY());
-
-        // 敵更新（難易度パラメータを渡す）
         this.enemyManager.update(dt, this.player, this);
-
-        // 武器更新
         this.weaponManager.update(dt, this.enemyManager.getEnemies(), this);
 
-        // 経験値クリスタル更新
         for (const c of this.expCrystals) {
             c.update(dt);
         }
 
-        // 体力回復アイテム更新
         for (let i = this.healItems.length - 1; i >= 0; i--) {
             this.healItems[i].update(dt);
             if (!this.healItems[i].isAlive()) {
@@ -133,12 +119,10 @@ export class Game {
             }
         }
 
-        // プレイヤー死亡チェック
         if (!this.player.isAlive()) {
             this.state = 'gameover';
         }
 
-        // レベルアップチェック
         const currentLevel = this.player.getLevel();
         if (this.player._lastLevel !== undefined && currentLevel > this.player._lastLevel) {
             this.showLevelUp();
@@ -151,7 +135,6 @@ export class Game {
         const w = this.canvas.width;
         const h = this.canvas.height;
 
-        // 背景クリア
         ctx.fillStyle = '#1a1a2e';
         ctx.fillRect(0, 0, w, h);
 
@@ -160,48 +143,35 @@ export class Game {
             return;
         }
 
-        // ゲーム描画
         ctx.save();
         this.camera.apply(ctx);
 
-        // グリッド背景
         this.drawGrid(ctx);
 
-        // 体力回復アイテム
         for (const item of this.healItems) {
             item.draw(ctx, this.camera);
         }
 
-        // 経験値クリスタル
         for (const c of this.expCrystals) {
             c.draw(ctx, this.camera);
         }
 
-        // 敵
         this.enemyManager.draw(ctx, this.camera);
-
-        // 武器エフェクト
         this.weaponManager.draw(ctx, this.camera);
-
-        // プレイヤー
         this.player.draw(ctx, this.camera);
 
         ctx.restore();
 
-        // HUD
         this.hud.draw(ctx, this.player, this);
 
-        // レベルアップメニュー
         if (this.state === 'levelup') {
             this.hud.drawLevelUpMenu(ctx, this.levelUpChoices);
         }
 
-        // ゲームオーバー
         if (this.state === 'gameover') {
             this.drawGameOver(ctx);
         }
 
-        // ゲームクリア
         if (this.state === 'gameclear') {
             this.drawGameClear(ctx);
         }
@@ -309,36 +279,39 @@ export class Game {
     showLevelUp() {
         this.state = 'levelup';
 
-        // ランダムに3つの武器を選ぶ
+        // 武器IDリスト
         const weaponIds = Object.keys(WEAPON_DEFS);
+        // バフIDリスト
+        const buffIds = Object.keys(BUFF_DEFS);
+
         const choices = [];
 
-        // 既に持っている武器を優先
-        const owned = Object.keys(this.weaponManager.weapons);
-        const notOwned = weaponIds.filter(id => !owned.includes(id));
+        // 既に持っている武器
+        const ownedWeapons = Object.keys(this.weaponManager.weapons);
+        // 既に持っているバフ
+        const ownedBuffs = Object.keys(this.weaponManager.buffs);
 
-        // 1つは未所持から、残り2つはランダム
-        if (notOwned.length > 0) {
-            const randomNotOwned = notOwned.sort(() => Math.random() - 0.5).slice(0, 1);
-            const randomAll = weaponIds.sort(() => Math.random() - 0.5).slice(0, 2);
-            const pool = [...randomNotOwned, ...randomAll];
-            // 重複除去
-            const unique = [...new Set(pool)].slice(0, 3);
-            while (unique.length < 3) {
-                unique.push(weaponIds[Math.floor(Math.random() * weaponIds.length)]);
-            }
+        // 未所持武器
+        const notOwnedWeapons = weaponIds.filter(id => !ownedWeapons.includes(id));
 
-            for (const id of unique.slice(0, 3)) {
+        // 武器とバフを混ぜてプールを作る
+        // 武器: 未所持を優先、バフはすべて候補
+        const weaponPool = notOwnedWeapons.length > 0 ? notOwnedWeapons : weaponIds;
+        const allPool = [...weaponPool, ...buffIds];
+
+        // ランダムに3つ選ぶ
+        const shuffled = allPool.sort(() => Math.random() - 0.5);
+        const selected = shuffled.slice(0, 3);
+
+        for (const id of selected) {
+            if (WEAPON_DEFS[id]) {
                 const def = WEAPON_DEFS[id];
                 const currentLevel = this.weaponManager.weapons[id] ? this.weaponManager.weapons[id].level : 0;
-                choices.push({ id, ...def, currentLevel });
-            }
-        } else {
-            const random = weaponIds.sort(() => Math.random() - 0.5).slice(0, 3);
-            for (const id of random) {
-                const def = WEAPON_DEFS[id];
-                const currentLevel = this.weaponManager.weapons[id] ? this.weaponManager.weapons[id].level : 0;
-                choices.push({ id, ...def, currentLevel });
+                choices.push({ id, ...def, currentLevel, type: 'weapon' });
+            } else if (BUFF_DEFS[id]) {
+                const def = BUFF_DEFS[id];
+                const currentLevel = this.weaponManager.buffs[id] || 0;
+                choices.push({ id, ...def, currentLevel, type: 'buff' });
             }
         }
 
@@ -346,8 +319,12 @@ export class Game {
         this.hud.setMenuActive(true, choices);
     }
 
-    selectWeapon(weaponId) {
-        this.weaponManager.addWeapon(weaponId);
+    selectUpgrade(choice) {
+        if (choice.type === 'weapon') {
+            this.weaponManager.addWeapon(choice.id);
+        } else if (choice.type === 'buff') {
+            this.weaponManager.addBuff(choice.id);
+        }
         this.hud.setMenuActive(false);
         this.state = 'playing';
     }
@@ -355,8 +332,9 @@ export class Game {
     onEnemyKilled(enemy) {
         this.score += enemy.score || 10;
 
-        // 経験値クリスタルをドロップ
-        const expValue = Math.max(1, Math.floor(Math.random() * 3) + 1);
+        // 経験値クリスタルをドロップ（バフ倍率適用）
+        const expMult = this.weaponManager.getExpMultiplier();
+        const expValue = Math.max(1, Math.floor((Math.random() * 3 + 1) * expMult));
         const crystal = new ExpCrystal(enemy.x, enemy.y, expValue);
         this.expCrystals.push(crystal);
 
@@ -368,35 +346,12 @@ export class Game {
         }
     }
 
-    gameOver() {
-        this.state = 'gameover';
-    }
-
-    restart() {
-        this.start();
-    }
-
-    pause() {
-        if (this.state === 'playing') this.state = 'paused';
-    }
-
-    resume() {
-        if (this.state === 'paused') this.state = 'playing';
-    }
-
-    isRunning() {
-        return this.state === 'playing' || this.state === 'paused';
-    }
-
-    isPaused() {
-        return this.state === 'paused';
-    }
-
-    getWeaponChoices(level) {
-        return this.levelUpChoices;
-    }
-
-    getState() {
-        return this.state;
-    }
+    gameOver() { this.state = 'gameover'; }
+    restart() { this.start(); }
+    pause() { if (this.state === 'playing') this.state = 'paused'; }
+    resume() { if (this.state === 'paused') this.state = 'playing'; }
+    isRunning() { return this.state === 'playing' || this.state === 'paused'; }
+    isPaused() { return this.state === 'paused'; }
+    getWeaponChoices(level) { return this.levelUpChoices; }
+    getState() { return this.state; }
 }

@@ -10,10 +10,22 @@ export const WEAPON_DEFS = {
     holy_cross: { name: 'ホーリークロス', desc: '縦横に光の十字架を放つ', color: '#f1c40f' }
 };
 
+// バフ定義
+export const BUFF_DEFS = {
+    max_hp_up: { name: 'マックスHPアップ', desc: '最大HPを15増加', color: '#e74c3c', icon: '🔴' },
+    heal_up: { name: '回復量アップ', desc: 'ハート回復量を+10増加', color: '#2ecc71', icon: '💚' },
+    atk_up: { name: '攻撃力アップ', desc: '全武器ダメージ+10%', color: '#f1c40f', icon: '🟡' },
+    atk_speed_up: { name: '攻撃速度アップ', desc: 'クールダウン-8%', color: '#3498db', icon: '🔵' },
+    exp_bonus: { name: '経験値ボーナス', desc: '経験値獲得量+15%', color: '#9b59b6', icon: '🟣' },
+    pickup_range: { name: 'アイテム取得範囲アップ', desc: '取得範囲+20%', color: '#e67e22', icon: '🟠' },
+    move_speed_up: { name: '移動速度アップ', desc: '移動速度+8%', color: '#ecf0f1', icon: '⚪' }
+};
+
 export class WeaponManager {
     constructor(player) {
         this.player = player;
         this.weapons = {}; // { weaponId: { level, cooldown, ... } }
+        this.buffs = {}; // { buffId: level }
         this.projectiles = [];
         this.swordAngle = 0;
         this.poisonClouds = [];
@@ -26,6 +38,7 @@ export class WeaponManager {
 
     init() {
         this.weapons = {};
+        this.buffs = {};
         this.projectiles = [];
         this.swordAngle = 0;
         this.poisonClouds = [];
@@ -44,27 +57,99 @@ export class WeaponManager {
         }
     }
 
-    upgradeWeapon(weaponId) {
-        if (this.weapons[weaponId]) {
-            this.weapons[weaponId].level += 1;
+    addBuff(buffId) {
+        if (this.buffs[buffId]) {
+            this.buffs[buffId] += 1;
+        } else {
+            this.buffs[buffId] = 1;
         }
+        this.applyBuff(buffId);
+    }
+
+    applyBuff(buffId) {
+        const level = this.buffs[buffId];
+        switch (buffId) {
+            case 'max_hp_up':
+                this.player.maxHp += 15;
+                this.player.hp = Math.min(this.player.hp + 15, this.player.maxHp);
+                break;
+            case 'heal_up':
+                // ハートアイテムの回復量ボーナス（playerに保存）
+                this.player.healBonus = (this.player.healBonus || 0) + 10;
+                break;
+            case 'atk_up':
+                // ダメージ倍率（後で計算時に使う）
+                break;
+            case 'atk_speed_up':
+                // クールダウン短縮倍率
+                break;
+            case 'exp_bonus':
+                // 経験値ボーナス倍率
+                break;
+            case 'pickup_range':
+                // 取得範囲拡大（playerに保存）
+                this.player.pickupRangeBonus = (this.player.pickupRangeBonus || 0) + 20;
+                break;
+            case 'move_speed_up':
+                this.player.speedBonus = (this.player.speedBonus || 0) + 8;
+                break;
+        }
+    }
+
+    // バフのダメージ倍率
+    getAttackMultiplier() {
+        const level = this.buffs.atk_up || 0;
+        return 1 + level * 0.10;
+    }
+
+    // バフの攻撃速度倍率（小さいほど速い）
+    getAttackSpeedMultiplier() {
+        const level = this.buffs.atk_speed_up || 0;
+        return Math.max(0.2, 1 - level * 0.08);
+    }
+
+    // バフの経験値倍率
+    getExpMultiplier() {
+        const level = this.buffs.exp_bonus || 0;
+        return 1 + level * 0.15;
+    }
+
+    // バフの取得範囲倍率
+    getPickupRangeMultiplier() {
+        const level = this.buffs.pickup_range || 0;
+        return 1 + level * 0.20;
+    }
+
+    // 画面内の敵のみをフィルタリング
+    getEnemiesOnScreen(enemies, camera) {
+        const margin = 50;
+        return enemies.filter(e => {
+            const sx = e.x - camera.getX();
+            const sy = e.y - camera.getY();
+            return sx >= -margin && sx <= camera.getWidth() + margin &&
+                   sy >= -margin && sy <= camera.getHeight() + margin;
+        });
     }
 
     update(dt, enemies, game) {
         const px = this.player.getX();
         const py = this.player.getY();
+        const atkMult = this.getAttackMultiplier();
+        const atkSpeedMult = this.getAttackSpeedMultiplier();
+
+        // 画面内の敵のみを取得
+        const onScreenEnemies = this.getEnemiesOnScreen(enemies, game.camera);
 
         // マジックボウル
         if (this.weapons.magic_bowl) {
             const w = this.weapons.magic_bowl;
             w.cooldown -= dt;
-            const fireRate = Math.max(0.3, 1.0 - w.level * 0.08);
+            const fireRate = Math.max(0.3, (1.0 - w.level * 0.08) * atkSpeedMult);
             const bulletCount = Math.min(w.level, 5);
-            if (w.cooldown <= 0 && enemies.length > 0) {
+            if (w.cooldown <= 0 && onScreenEnemies.length > 0) {
                 w.cooldown = fireRate;
-                // 最も近い敵をターゲット
                 let closest = null, closestDist = Infinity;
-                for (const e of enemies) {
+                for (const e of onScreenEnemies) {
                     const d = Math.sqrt((e.x - px) ** 2 + (e.y - py) ** 2);
                     if (d < closestDist) { closestDist = d; closest = e; }
                 }
@@ -76,7 +161,7 @@ export class WeaponManager {
                             x: px, y: py,
                             vx: Math.cos(angle + spread) * 300,
                             vy: Math.sin(angle + spread) * 300,
-                            damage: 10 + w.level * 5,
+                            damage: (10 + w.level * 5) * atkMult,
                             radius: 5,
                             color: WEAPON_DEFS.magic_bowl.color,
                             life: 2,
@@ -93,21 +178,22 @@ export class WeaponManager {
             this.swordAngle += dt * (3 + w.level * 0.5);
             const swordCount = Math.min(1 + Math.floor(w.level / 2), 4);
             const swordRange = 40 + w.level * 5;
-            const swordDamage = 15 + w.level * 5;
+            const swordDamage = (15 + w.level * 5) * atkMult;
 
             for (let s = 0; s < swordCount; s++) {
                 const a = this.swordAngle + (s * Math.PI * 2 / swordCount);
                 const sx = px + Math.cos(a) * swordRange;
                 const sy = py + Math.sin(a) * swordRange;
 
-                for (let i = enemies.length - 1; i >= 0; i--) {
-                    const e = enemies[i];
+                for (let i = onScreenEnemies.length - 1; i >= 0; i--) {
+                    const e = onScreenEnemies[i];
                     const d = Math.sqrt((e.x - sx) ** 2 + (e.y - sy) ** 2);
                     if (d < e.radius + 15) {
                         e.hp -= swordDamage * dt;
                         if (e.hp <= 0) {
                             game.onEnemyKilled(e);
-                            enemies.splice(i, 1);
+                            const idx = enemies.indexOf(e);
+                            if (idx >= 0) enemies.splice(idx, 1);
                         }
                     }
                 }
@@ -119,18 +205,19 @@ export class WeaponManager {
             const w = this.weapons.holy_circle;
             this.holyCircleTimer += dt;
             const range = 80 + w.level * 15;
-            const damage = 5 + w.level * 3;
+            const damage = (5 + w.level * 3) * atkMult;
 
-            if (this.holyCircleTimer >= 1.0) {
+            if (this.holyCircleTimer >= 1.0 * atkSpeedMult) {
                 this.holyCircleTimer = 0;
-                for (let i = enemies.length - 1; i >= 0; i--) {
-                    const e = enemies[i];
+                for (let i = onScreenEnemies.length - 1; i >= 0; i--) {
+                    const e = onScreenEnemies[i];
                     const d = Math.sqrt((e.x - px) ** 2 + (e.y - py) ** 2);
                     if (d < range) {
                         e.hp -= damage;
                         if (e.hp <= 0) {
                             game.onEnemyKilled(e);
-                            enemies.splice(i, 1);
+                            const idx = enemies.indexOf(e);
+                            if (idx >= 0) enemies.splice(idx, 1);
                         }
                     }
                 }
@@ -141,14 +228,14 @@ export class WeaponManager {
         if (this.weapons.thunder) {
             const w = this.weapons.thunder;
             this.thunderTimer -= dt;
-            const rate = Math.max(0.5, 2.0 - w.level * 0.15);
-            const damage = 20 + w.level * 10;
+            const rate = Math.max(0.5, (2.0 - w.level * 0.15) * atkSpeedMult);
+            const damage = (20 + w.level * 10) * atkMult;
             const strikeCount = Math.min(w.level, 5);
 
-            if (this.thunderTimer <= 0 && enemies.length > 0) {
+            if (this.thunderTimer <= 0 && onScreenEnemies.length > 0) {
                 this.thunderTimer = rate;
                 for (let i = 0; i < strikeCount; i++) {
-                    const target = enemies[Math.floor(Math.random() * enemies.length)];
+                    const target = onScreenEnemies[Math.floor(Math.random() * onScreenEnemies.length)];
                     if (target) {
                         this.projectiles.push({
                             x: target.x, y: target.y - 50,
@@ -176,11 +263,11 @@ export class WeaponManager {
             if (Math.abs(dir.x) > 0.1 || Math.abs(dir.y) > 0.1) {
                 w.cooldown = (w.cooldown || 0) - dt;
                 if (w.cooldown <= 0) {
-                    w.cooldown = 0.5;
+                    w.cooldown = 0.5 * atkSpeedMult;
                     this.poisonClouds.push({
                         x: px, y: py,
                         radius: 20 + w.level * 5,
-                        damage: 3 + w.level * 2,
+                        damage: (3 + w.level * 2) * atkMult,
                         life: 3,
                         maxLife: 3
                     });
@@ -194,14 +281,15 @@ export class WeaponManager {
                     this.poisonClouds.splice(i, 1);
                     continue;
                 }
-                for (let j = enemies.length - 1; j >= 0; j--) {
-                    const e = enemies[j];
+                for (let j = onScreenEnemies.length - 1; j >= 0; j--) {
+                    const e = onScreenEnemies[j];
                     const d = Math.sqrt((e.x - cloud.x) ** 2 + (e.y - cloud.y) ** 2);
                     if (d < cloud.radius + e.radius) {
                         e.hp -= cloud.damage * dt;
                         if (e.hp <= 0) {
                             game.onEnemyKilled(e);
-                            enemies.splice(j, 1);
+                            const idx = enemies.indexOf(e);
+                            if (idx >= 0) enemies.splice(idx, 1);
                         }
                     }
                 }
@@ -212,7 +300,7 @@ export class WeaponManager {
         if (this.weapons.arrow_shower) {
             const w = this.weapons.arrow_shower;
             this.arrowTimer -= dt;
-            const rate = Math.max(0.2, 1.0 - w.level * 0.1);
+            const rate = Math.max(0.2, (1.0 - w.level * 0.1) * atkSpeedMult);
             const arrowCount = Math.min(w.level, 8);
 
             if (this.arrowTimer <= 0) {
@@ -224,7 +312,7 @@ export class WeaponManager {
                         x: ax, y: ay - 100,
                         vx: (Math.random() - 0.5) * 30,
                         vy: 250 + Math.random() * 100,
-                        damage: 8 + w.level * 3,
+                        damage: (8 + w.level * 3) * atkMult,
                         radius: 3,
                         life: 2,
                         type: 'arrow',
@@ -244,7 +332,7 @@ export class WeaponManager {
                 this.guardians.push({
                     x: px + Math.cos(angle) * 60,
                     y: py + Math.sin(angle) * 60,
-                    damage: 10 + w.level * 5,
+                    damage: (10 + w.level * 5) * atkMult,
                     radius: 12,
                     cooldown: 0,
                     angle: 0
@@ -258,10 +346,9 @@ export class WeaponManager {
                 g.y = py + Math.sin(g.angle) * 60;
 
                 if (g.cooldown <= 0) {
-                    g.cooldown = 0.8;
-                    // 最も近い敵を攻撃
+                    g.cooldown = 0.8 * atkSpeedMult;
                     let closest = null, closestDist = Infinity;
-                    for (const e of enemies) {
+                    for (const e of onScreenEnemies) {
                         const d = Math.sqrt((e.x - g.x) ** 2 + (e.y - g.y) ** 2);
                         if (d < closestDist) { closestDist = d; closest = e; }
                     }
@@ -285,13 +372,12 @@ export class WeaponManager {
         if (this.weapons.holy_cross) {
             const w = this.weapons.holy_cross;
             this.crossTimer -= dt;
-            const rate = Math.max(0.8, 2.5 - w.level * 0.15);
-            const damage = 12 + w.level * 5;
+            const rate = Math.max(0.8, (2.5 - w.level * 0.15) * atkSpeedMult);
+            const damage = (12 + w.level * 5) * atkMult;
 
-            if (this.crossTimer <= 0 && enemies.length > 0) {
+            if (this.crossTimer <= 0 && onScreenEnemies.length > 0) {
                 this.crossTimer = rate;
                 const crossSize = 100 + w.level * 20;
-                // 縦線
                 this.projectiles.push({
                     x: px, y: py,
                     width: 6, height: crossSize * 2,
@@ -300,7 +386,6 @@ export class WeaponManager {
                     type: 'holy_cross',
                     color: WEAPON_DEFS.holy_cross.color
                 });
-                // 横線
                 this.projectiles.push({
                     x: px, y: py,
                     width: crossSize * 2, height: 6,
@@ -310,18 +395,17 @@ export class WeaponManager {
                     color: WEAPON_DEFS.holy_cross.color
                 });
 
-                // 十字範囲内の敵をダメージ
-                for (let i = enemies.length - 1; i >= 0; i--) {
-                    const e = enemies[i];
+                for (let i = onScreenEnemies.length - 1; i >= 0; i--) {
+                    const e = onScreenEnemies[i];
                     if (Math.abs(e.x - px) < crossSize && Math.abs(e.y - py) < crossSize) {
-                        // 十字線上に近い敵だけ
                         const onVertical = Math.abs(e.x - px) < 10;
                         const onHorizontal = Math.abs(e.y - py) < 10;
                         if (onVertical || onHorizontal) {
                             e.hp -= damage;
                             if (e.hp <= 0) {
                                 game.onEnemyKilled(e);
-                                enemies.splice(i, 1);
+                                const idx = enemies.indexOf(e);
+                                if (idx >= 0) enemies.splice(idx, 1);
                             }
                         }
                     }
@@ -344,7 +428,6 @@ export class WeaponManager {
                 continue;
             }
 
-            // 敵との衝突（雷撃とホーリークロスは既に対処済み）
             if (p.type !== 'thunder' && p.type !== 'holy_cross') {
                 for (let j = enemies.length - 1; j >= 0; j--) {
                     const e = enemies[j];
@@ -364,12 +447,10 @@ export class WeaponManager {
     }
 
     draw(ctx, camera) {
-        // プロジェクタイル描画
         for (const p of this.projectiles) {
             ctx.fillStyle = p.color || '#fff';
 
             if (p.type === 'thunder') {
-                // 雷の描画
                 ctx.strokeStyle = '#f1c40f';
                 ctx.lineWidth = 4;
                 ctx.beginPath();
@@ -378,7 +459,6 @@ export class WeaponManager {
                 ctx.stroke();
                 ctx.lineWidth = 1;
             } else if (p.type === 'holy_cross') {
-                // 十字の描画
                 ctx.globalAlpha = 0.7;
                 ctx.fillRect(p.x - p.width / 2, p.y - p.height / 2, p.width, p.height);
                 ctx.globalAlpha = 1;
@@ -389,7 +469,6 @@ export class WeaponManager {
             }
         }
 
-        // 回転剣の描画
         if (this.weapons.spinning_sword) {
             const w = this.weapons.spinning_sword;
             const swordCount = Math.min(1 + Math.floor(w.level / 2), 4);
@@ -413,7 +492,6 @@ export class WeaponManager {
             }
         }
 
-        // 聖光陣の描画
         if (this.weapons.holy_circle) {
             const w = this.weapons.holy_circle;
             const range = 80 + w.level * 15;
@@ -428,7 +506,6 @@ export class WeaponManager {
             ctx.lineWidth = 1;
         }
 
-        // ポイズンクラウド描画
         for (const cloud of this.poisonClouds) {
             const alpha = cloud.life / cloud.maxLife;
             ctx.fillStyle = `rgba(46, 204, 113, ${alpha * 0.4})`;
@@ -437,7 +514,6 @@ export class WeaponManager {
             ctx.fill();
         }
 
-        // ガーディアン描画
         for (const g of this.guardians) {
             ctx.fillStyle = '#95a5a6';
             ctx.beginPath();
@@ -455,6 +531,14 @@ export class WeaponManager {
             id,
             level: this.weapons[id].level,
             ...WEAPON_DEFS[id]
+        }));
+    }
+
+    getBuffs() {
+        return Object.keys(this.buffs).map(id => ({
+            id,
+            level: this.buffs[id],
+            ...BUFF_DEFS[id]
         }));
     }
 }

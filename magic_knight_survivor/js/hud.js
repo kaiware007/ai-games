@@ -13,7 +13,6 @@ export class HUD {
         const w = this.canvas.width;
         const h = this.canvas.height;
 
-        // 背景オーバーレイ
         ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.fillRect(0, 0, w, 40);
 
@@ -63,12 +62,15 @@ export class HUD {
 
         // 武器情報（右下）
         const weapons = game.weaponManager.getWeapons();
-        if (weapons.length > 0) {
+        const buffs = game.weaponManager.getBuffs();
+        const allItems = [...weapons, ...buffs];
+        if (allItems.length > 0) {
             ctx.textAlign = 'right';
             ctx.font = '11px monospace';
             ctx.fillStyle = 'rgba(255,255,255,0.7)';
-            weapons.forEach((w, i) => {
-                ctx.fillText(`${w.name} Lv.${w.level}`, w - 10, 58 + i * 14);
+            allItems.forEach((item, i) => {
+                const prefix = item.type === 'buff' ? '★' : '⚔';
+                ctx.fillText(`${prefix}${item.name} Lv.${item.level}`, w - 10, 58 + i * 14);
             });
         }
     }
@@ -77,11 +79,9 @@ export class HUD {
         const w = this.canvas.width;
         const h = this.canvas.height;
 
-        // 背景
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
         ctx.fillRect(0, 0, w, h);
 
-        // タイトル
         ctx.fillStyle = '#f1c40f';
         ctx.font = 'bold 24px monospace';
         ctx.textAlign = 'center';
@@ -89,9 +89,8 @@ export class HUD {
 
         ctx.fillStyle = '#fff';
         ctx.font = '14px monospace';
-        ctx.fillText('武器を選んで強化して！', w / 2, 90);
+        ctx.fillText('武器かバフを選んで強化して！', w / 2, 90);
 
-        // カード描画
         const cardWidth = 140;
         const cardHeight = 180;
         const gap = 20;
@@ -105,7 +104,6 @@ export class HUD {
             const x = startX + i * (cardWidth + gap);
             const y = startY;
 
-            // カード背景
             const isSelected = (i === this.selection);
             ctx.fillStyle = isSelected ? '#f39c12' : '#2c3e50';
             ctx.strokeStyle = isSelected ? '#f1c40f' : '#34495e';
@@ -123,19 +121,28 @@ export class HUD {
             ctx.arc(x + cardWidth / 2, y + 40, 25, 0, Math.PI * 2);
             ctx.fill();
 
-            // 武器名
+            // バフならアイコン表示
+            if (choice.type === 'buff' && choice.icon) {
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(choice.icon, x + cardWidth / 2, y + 46);
+            }
+
+            // 名前
             ctx.fillStyle = '#fff';
-            ctx.font = 'bold 13px monospace';
+            ctx.font = 'bold 12px monospace';
             ctx.textAlign = 'center';
-            ctx.fillText(choice.name, x + cardWidth / 2, y + 85);
+            const nameLine = choice.type === 'buff' ? `★ ${choice.name}` : choice.name;
+            ctx.fillText(nameLine, x + cardWidth / 2, y + 80);
 
             // 説明
             ctx.fillStyle = '#bbb';
-            ctx.font = '11px monospace';
+            ctx.font = '10px monospace';
             const desc = choice.desc || '';
-            const words = desc.match(/.{1,8}/g) || [];
+            const words = desc.match(/.{1,10}/g) || [];
             words.forEach((word, j) => {
-                ctx.fillText(word, x + cardWidth / 2, y + 105 + j * 14);
+                ctx.fillText(word, x + cardWidth / 2, y + 100 + j * 14);
             });
 
             // レベル表示
@@ -146,7 +153,7 @@ export class HUD {
             } else {
                 ctx.fillStyle = '#2ecc71';
                 ctx.font = 'bold 12px monospace';
-                ctx.fillText('新規獲得!', x + cardWidth / 2, y + 165);
+                ctx.fillText(choice.type === 'buff' ? '新規バフ!' : '新規獲得!', x + cardWidth / 2, y + 165);
             }
         });
     }
@@ -161,7 +168,6 @@ export class HUD {
 
     getMenuSelection(mx, my) {
         const w = this.canvas.width;
-        const h = this.canvas.height;
 
         const cardWidth = 140;
         const cardHeight = 180;

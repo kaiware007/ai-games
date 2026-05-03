@@ -3,6 +3,7 @@ export class Player {
         this.x = x;
         this.y = y;
         this.speed = 150;
+        this.speedBonus = 0; // バフからの移動速度ボーナス%
         this.radius = 12;
         this.hp = 100;
         this.maxHp = 100;
@@ -11,6 +12,8 @@ export class Player {
         this.level = 1;
         this.invulnerable = 0;
         this.alive = true;
+        this.healBonus = 0; // バフからの回復量ボーナス
+        this.pickupRangeBonus = 0; // バフからの取得範囲ボーナス%
     }
 
     init() {
@@ -19,18 +22,32 @@ export class Player {
         this.level = 1;
         this.alive = true;
         this.invulnerable = 0;
+        this.speedBonus = 0;
+        this.healBonus = 0;
+        this.pickupRangeBonus = 0;
+    }
+
+    getSpeed() {
+        return this.speed * (1 + this.speedBonus / 100);
+    }
+
+    getPickupRange() {
+        return 80 * (1 + this.pickupRangeBonus / 100);
     }
 
     update(dt, input, game) {
         if (!this.alive) return;
 
         const dir = input.getMoveDirection();
-        this.x += dir.x * this.speed * dt;
-        this.y += dir.y * this.speed * dt;
+        const speed = this.getSpeed();
+        this.x += dir.x * speed * dt;
+        this.y += dir.y * speed * dt;
 
         if (this.invulnerable > 0) {
             this.invulnerable -= dt;
         }
+
+        const pickupRange = this.getPickupRange();
 
         // 経験値クリスタルの収集
         const crystals = game.expCrystals;
@@ -42,8 +59,7 @@ export class Player {
             if (dist < this.radius + 8) {
                 this.addExperience(c.getValue());
                 crystals.splice(i, 1);
-            } else if (dist < 80) {
-                // 磁石効果：近づくと吸い寄せられる
+            } else if (dist < pickupRange) {
                 const pullSpeed = 200;
                 const pullDx = -dx / dist * pullSpeed * dt;
                 const pullDy = -dy / dist * pullSpeed * dt;
@@ -60,11 +76,10 @@ export class Player {
             const dy = item.getY() - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < this.radius + item.radius) {
-                // HP回復
-                this.hp = Math.min(this.hp + item.getHealAmount(), this.maxHp);
+                const healAmount = item.getHealAmount() + this.healBonus;
+                this.hp = Math.min(this.hp + healAmount, this.maxHp);
                 healItems.splice(i, 1);
-            } else if (dist < 80) {
-                // 磁石効果：近づくと吸い寄せられる
+            } else if (dist < pickupRange) {
                 const pullSpeed = 200;
                 const pullDx = -dx / dist * pullSpeed * dt;
                 const pullDy = -dy / dist * pullSpeed * dt;
@@ -77,24 +92,20 @@ export class Player {
     draw(ctx, camera) {
         if (!this.alive) return;
 
-        // 無敵時間中は点滅
         if (this.invulnerable > 0 && Math.floor(this.invulnerable * 10) % 2 === 0) {
             ctx.globalAlpha = 0.5;
         }
 
-        // 体（魔法騎士）
         ctx.fillStyle = '#4a90d9';
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fill();
 
-        // ヘルメット
         ctx.fillStyle = '#8b7355';
         ctx.beginPath();
         ctx.arc(this.x, this.y - 4, this.radius * 0.7, Math.PI, 0);
         ctx.fill();
 
-        // 目
         ctx.fillStyle = '#fff';
         ctx.fillRect(this.x - 5, this.y - 3, 4, 3);
         ctx.fillRect(this.x + 1, this.y - 3, 4, 3);
