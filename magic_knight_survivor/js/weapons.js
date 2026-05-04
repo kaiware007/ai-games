@@ -1,13 +1,127 @@
-// 武器定義
+// 武器定義 — 攻撃力・クールタイム・レベルアップ成長要素付き
 export const WEAPON_DEFS = {
-    magic_bowl: { name: 'マジックボウル', desc: '最も近い敵に魔法弾を発射', color: '#9b59b6' },
-    spinning_sword: { name: '回転剣', desc: '周囲を剣が回転して近接攻撃', color: '#e74c3c' },
-    holy_circle: { name: '聖光陣', desc: '周囲に光の陣を張り範囲ダメージ', color: '#f39c12' },
-    thunder: { name: '雷撃', desc: 'ランダムな敵に雷を落とす', color: '#3498db' },
-    poison_cloud: { name: 'ポイズンクラウド', desc: '歩いた跡に残る毒雲', color: '#2ecc71' },
-    arrow_shower: { name: 'シャワーオブアロウ', desc: '上空から矢が降る', color: '#1abc9c' },
-    guardian: { name: 'ガーディアン', desc: '味方ゴーレムを召喚', color: '#95a5a6' },
-    holy_cross: { name: 'ホーリークロス', desc: '縦横に光の十字架を放つ', color: '#f1c40f' }
+    magic_bowl: {
+        name: 'マジックボウル',
+        desc: '最も近い敵に魔法弾を発射',
+        color: '#9b59b6',
+        baseDamage: 15,
+        cooldown: 1.2,
+        bulletCount: 1,
+        // レベルアップ効果: Lv2:弾数+1, Lv3:攻撃力+5, Lv4:弾数+1, Lv5:攻撃力+10
+        levelEffects: {
+            2: { bulletCount: 1 },
+            3: { damage: 5 },
+            4: { bulletCount: 1 },
+            5: { damage: 10 }
+        }
+    },
+    spinning_sword: {
+        name: '回転剣',
+        desc: '周囲を剣が回転して近接攻撃',
+        color: '#e74c3c',
+        baseDamage: 12,
+        cooldown: 0, // 連続攻撃
+        rotationSpeed: 3,
+        rotationRadius: 40,
+        swordCount: 1,
+        // レベルアップ効果: Lv2:回転半径+20%, Lv3:攻撃力+5, Lv4:剣数+1, Lv5:攻撃力+10
+        levelEffects: {
+            2: { rotationRadius: 0.20 },
+            3: { damage: 5 },
+            4: { swordCount: 1 },
+            5: { damage: 10 }
+        }
+    },
+    holy_circle: {
+        name: '聖光陣',
+        desc: '周囲に光の陣を張り範囲ダメージ',
+        color: '#f39c12',
+        baseDamage: 8, // 秒あたり
+        cooldown: 0, // 常時発動
+        radius: 80,
+        // レベルアップ効果: Lv2:範囲半径+15%, Lv3:攻撃力+3/秒, Lv4:範囲半径+15%, Lv5:攻撃力+5/秒
+        levelEffects: {
+            2: { radius: 0.15 },
+            3: { damage: 3 },
+            4: { radius: 0.15 },
+            5: { damage: 5 }
+        }
+    },
+    thunder: {
+        name: '雷撃',
+        desc: 'ランダムな敵に雷を落とす',
+        color: '#3498db',
+        baseDamage: 35,
+        cooldown: 3.0,
+        // レベルアップ効果: Lv2:攻撃力+10, Lv3:クールタイム-0.3s, Lv4:攻撃力+15, Lv5:クールタイム-0.5s
+        levelEffects: {
+            2: { damage: 10 },
+            3: { cooldown: -0.3 },
+            4: { damage: 15 },
+            5: { cooldown: -0.5 }
+        }
+    },
+    poison_cloud: {
+        name: 'ポイズンクラウド',
+        desc: '歩いた跡に残る毒雲',
+        color: '#2ecc71',
+        baseDamage: 5, // 秒あたり
+        cooldown: 2.0,
+        duration: 3, // 秒
+        radius: 20,
+        // レベルアップ効果: Lv2:毒持続+1秒, Lv3:攻撃力+2/秒, Lv4:毒持続+1秒, Lv5:攻撃力+3/秒
+        levelEffects: {
+            2: { duration: 1 },
+            3: { damage: 2 },
+            4: { duration: 1 },
+            5: { damage: 3 }
+        }
+    },
+    arrow_shower: {
+        name: 'シャワーオブアロウ',
+        desc: '上空から矢が降る',
+        color: '#1abc9c',
+        baseDamage: 12,
+        cooldown: 1.5,
+        arrowCount: 3,
+        // レベルアップ効果: Lv2:矢数+2, Lv3:攻撃力+5, Lv4:矢数+2, Lv5:攻撃力+8
+        levelEffects: {
+            2: { arrowCount: 2 },
+            3: { damage: 5 },
+            4: { arrowCount: 2 },
+            5: { damage: 8 }
+        }
+    },
+    guardian: {
+        name: 'ガーディアン',
+        desc: '味方ゴーレムを召喚',
+        color: '#95a5a6',
+        baseDamage: 25,
+        cooldown: 2.0,
+        guardianCount: 1,
+        // レベルアップ効果: Lv2:攻撃力+8, Lv3:ゴーレム数+1, Lv4:攻撃力+12, Lv5:ゴーレム数+1
+        levelEffects: {
+            2: { damage: 8 },
+            3: { guardianCount: 1 },
+            4: { damage: 12 },
+            5: { guardianCount: 1 }
+        }
+    },
+    holy_cross: {
+        name: 'ホーリークロス',
+        desc: '縦横に光の十字架を放つ',
+        color: '#f1c40f',
+        baseDamage: 18,
+        cooldown: 2.5,
+        crossSize: 100,
+        // レベルアップ効果: Lv2:攻撃力+5, Lv3:範囲+15%, Lv4:攻撃力+8, Lv5:範囲+15%
+        levelEffects: {
+            2: { damage: 5 },
+            3: { crossSize: 0.15 },
+            4: { damage: 8 },
+            5: { crossSize: 0.15 }
+        }
+    }
 };
 
 // バフ定義
@@ -20,6 +134,55 @@ export const BUFF_DEFS = {
     pickup_range: { name: 'アイテム取得範囲アップ', desc: '取得範囲+20%', color: '#e67e22', icon: '🟠' },
     move_speed_up: { name: '移動速度アップ', desc: '移動速度+8%', color: '#ecf0f1', icon: '⚪' }
 };
+
+/**
+ * 武器の現在のステータスを計算する
+ * base + levelEffects の累積を計算
+ */
+function getWeaponStats(def, level) {
+    let damage = def.baseDamage;
+    let cooldown = def.cooldown;
+    let bulletCount = def.bulletCount || 1;
+    let rotationSpeed = def.rotationSpeed || 3;
+    let rotationRadius = def.rotationRadius || 40;
+    let swordCount = def.swordCount || 1;
+    let radius = def.radius || 80;
+    let duration = def.duration || 3;
+    let arrowCount = def.arrowCount || 3;
+    let guardianCount = def.guardianCount || 1;
+    let crossSize = def.crossSize || 100;
+
+    const effects = def.levelEffects || {};
+    for (let lv = 1; lv <= level; lv++) {
+        if (effects[lv]) {
+            const eff = effects[lv];
+            if (eff.damage) damage += eff.damage;
+            if (eff.cooldown) cooldown += eff.cooldown;
+            if (eff.bulletCount) bulletCount += eff.bulletCount;
+            if (eff.rotationRadius) rotationRadius *= (1 + eff.rotationRadius);
+            if (eff.swordCount) swordCount += eff.swordCount;
+            if (eff.radius) radius *= (1 + eff.radius);
+            if (eff.duration) duration += eff.duration;
+            if (eff.arrowCount) arrowCount += eff.arrowCount;
+            if (eff.guardianCount) guardianCount += eff.guardianCount;
+            if (eff.crossSize) crossSize *= (1 + eff.crossSize);
+        }
+    }
+
+    return {
+        damage,
+        cooldown: Math.max(0.1, cooldown),
+        bulletCount,
+        rotationSpeed,
+        rotationRadius,
+        swordCount,
+        radius,
+        duration,
+        arrowCount,
+        guardianCount,
+        crossSize
+    };
+}
 
 export class WeaponManager {
     constructor(player) {
@@ -74,20 +237,15 @@ export class WeaponManager {
                 this.player.hp = Math.min(this.player.hp + 15, this.player.maxHp);
                 break;
             case 'heal_up':
-                // ハートアイテムの回復量ボーナス（playerに保存）
                 this.player.healBonus = (this.player.healBonus || 0) + 10;
                 break;
             case 'atk_up':
-                // ダメージ倍率（後で計算時に使う）
                 break;
             case 'atk_speed_up':
-                // クールダウン短縮倍率
                 break;
             case 'exp_bonus':
-                // 経験値ボーナス倍率
                 break;
             case 'pickup_range':
-                // 取得範囲拡大（playerに保存）
                 this.player.pickupRangeBonus = (this.player.pickupRangeBonus || 0) + 20;
                 break;
             case 'move_speed_up':
@@ -96,31 +254,26 @@ export class WeaponManager {
         }
     }
 
-    // バフのダメージ倍率
     getAttackMultiplier() {
         const level = this.buffs.atk_up || 0;
         return 1 + level * 0.10;
     }
 
-    // バフの攻撃速度倍率（小さいほど速い）
     getAttackSpeedMultiplier() {
         const level = this.buffs.atk_speed_up || 0;
         return Math.max(0.2, 1 - level * 0.08);
     }
 
-    // バフの経験値倍率
     getExpMultiplier() {
         const level = this.buffs.exp_bonus || 0;
         return 1 + level * 0.15;
     }
 
-    // バフの取得範囲倍率
     getPickupRangeMultiplier() {
         const level = this.buffs.pickup_range || 0;
         return 1 + level * 0.20;
     }
 
-    // 画面内の敵のみをフィルタリング
     getEnemiesOnScreen(enemies, camera) {
         const margin = 50;
         return enemies.filter(e => {
@@ -137,15 +290,16 @@ export class WeaponManager {
         const atkMult = this.getAttackMultiplier();
         const atkSpeedMult = this.getAttackSpeedMultiplier();
 
-        // 画面内の敵のみを取得
         const onScreenEnemies = this.getEnemiesOnScreen(enemies, game.camera);
 
-        // マジックボウル
+        // マジックボウル — 弾数成長タイプ
         if (this.weapons.magic_bowl) {
             const w = this.weapons.magic_bowl;
             w.cooldown -= dt;
-            const fireRate = Math.max(0.3, (1.0 - w.level * 0.08) * atkSpeedMult);
-            const bulletCount = Math.min(w.level, 5);
+            const def = WEAPON_DEFS.magic_bowl;
+            const stats = getWeaponStats(def, w.level);
+
+            const fireRate = Math.max(0.3, stats.cooldown * atkSpeedMult);
             if (w.cooldown <= 0 && onScreenEnemies.length > 0) {
                 w.cooldown = fireRate;
                 let closest = null, closestDist = Infinity;
@@ -155,15 +309,16 @@ export class WeaponManager {
                 }
                 if (closest) {
                     const angle = Math.atan2(closest.y - py, closest.x - px);
+                    const bulletCount = Math.min(stats.bulletCount, 5);
                     for (let i = 0; i < bulletCount; i++) {
                         const spread = (i - (bulletCount - 1) / 2) * 0.15;
                         this.projectiles.push({
                             x: px, y: py,
                             vx: Math.cos(angle + spread) * 300,
                             vy: Math.sin(angle + spread) * 300,
-                            damage: (10 + w.level * 5) * atkMult,
+                            damage: stats.damage * atkMult,
                             radius: 5,
-                            color: WEAPON_DEFS.magic_bowl.color,
+                            color: def.color,
                             life: 2,
                             type: 'magic_bowl'
                         });
@@ -172,13 +327,19 @@ export class WeaponManager {
             }
         }
 
-        // 回転剣
+        // 回転剣 — 半径・剣数成長タイプ
         if (this.weapons.spinning_sword) {
             const w = this.weapons.spinning_sword;
-            this.swordAngle += dt * (3 + w.level * 0.5);
-            const swordCount = Math.min(1 + Math.floor(w.level / 2), 4);
-            const swordRange = 40 + w.level * 5;
-            const swordDamage = (15 + w.level * 5) * atkMult;
+            const def = WEAPON_DEFS.spinning_sword;
+            const stats = getWeaponStats(def, w.level);
+
+            // atk_speed_up は回転速度に適用
+            const rotationMult = this.buffs.atk_speed_up ? (1 + this.buffs.atk_speed_up * 0.08) : 1;
+            this.swordAngle += dt * stats.rotationSpeed * rotationMult;
+
+            const swordRange = stats.rotationRadius;
+            const swordDamage = stats.damage * atkMult;
+            const swordCount = stats.swordCount;
 
             for (let s = 0; s < swordCount; s++) {
                 const a = this.swordAngle + (s * Math.PI * 2 / swordCount);
@@ -200,12 +361,15 @@ export class WeaponManager {
             }
         }
 
-        // 聖光陣
+        // 聖光陣 — 範囲・ダメージ成長タイプ
         if (this.weapons.holy_circle) {
             const w = this.weapons.holy_circle;
+            const def = WEAPON_DEFS.holy_circle;
+            const stats = getWeaponStats(def, w.level);
+
             this.holyCircleTimer += dt;
-            const range = 80 + w.level * 15;
-            const damage = (5 + w.level * 3) * atkMult;
+            const range = stats.radius;
+            const damage = stats.damage * atkMult;
 
             if (this.holyCircleTimer >= 1.0 * atkSpeedMult) {
                 this.holyCircleTimer = 0;
@@ -224,16 +388,18 @@ export class WeaponManager {
             }
         }
 
-        // 雷撃
+        // 雷撃 — ダメージ・クールタイム成長タイプ
         if (this.weapons.thunder) {
             const w = this.weapons.thunder;
+            const def = WEAPON_DEFS.thunder;
+            const stats = getWeaponStats(def, w.level);
+
             this.thunderTimer -= dt;
-            const rate = Math.max(0.5, (2.0 - w.level * 0.15) * atkSpeedMult);
-            const damage = (20 + w.level * 10) * atkMult;
-            const strikeCount = Math.min(w.level, 5);
+            const damage = stats.damage * atkMult;
 
             if (this.thunderTimer <= 0 && onScreenEnemies.length > 0) {
-                this.thunderTimer = rate;
+                this.thunderTimer = stats.cooldown * atkSpeedMult;
+                const strikeCount = Math.min(w.level, 5);
                 for (let i = 0; i < strikeCount; i++) {
                     const target = onScreenEnemies[Math.floor(Math.random() * onScreenEnemies.length)];
                     if (target) {
@@ -243,7 +409,7 @@ export class WeaponManager {
                             damage: damage,
                             life: 0.3,
                             type: 'thunder',
-                            color: WEAPON_DEFS.thunder.color
+                            color: def.color
                         });
                         target.hp -= damage;
                         if (target.hp <= 0) {
@@ -256,20 +422,23 @@ export class WeaponManager {
             }
         }
 
-        // ポイズンクラウド
+        // ポイズンクラウド — 持続時間・ダメージ成長タイプ
         if (this.weapons.poison_cloud) {
             const w = this.weapons.poison_cloud;
+            const def = WEAPON_DEFS.poison_cloud;
+            const stats = getWeaponStats(def, w.level);
+
             const dir = game.input.getMoveDirection();
             if (Math.abs(dir.x) > 0.1 || Math.abs(dir.y) > 0.1) {
                 w.cooldown = (w.cooldown || 0) - dt;
                 if (w.cooldown <= 0) {
-                    w.cooldown = 0.5 * atkSpeedMult;
+                    w.cooldown = stats.cooldown * atkSpeedMult;
                     this.poisonClouds.push({
                         x: px, y: py,
-                        radius: 20 + w.level * 5,
-                        damage: (3 + w.level * 2) * atkMult,
-                        life: 3,
-                        maxLife: 3
+                        radius: stats.radius,
+                        damage: stats.damage * atkMult,
+                        life: stats.duration,
+                        maxLife: stats.duration
                     });
                 }
             }
@@ -296,46 +465,49 @@ export class WeaponManager {
             }
         }
 
-        // シャワーオブアロウ
+        // シャワーオブアロウ — 矢数・ダメージ成長タイプ
         if (this.weapons.arrow_shower) {
             const w = this.weapons.arrow_shower;
+            const def = WEAPON_DEFS.arrow_shower;
+            const stats = getWeaponStats(def, w.level);
+
             this.arrowTimer -= dt;
-            const rate = Math.max(0.2, (1.0 - w.level * 0.1) * atkSpeedMult);
-            const arrowCount = Math.min(w.level, 8);
 
             if (this.arrowTimer <= 0) {
-                this.arrowTimer = rate;
-                for (let i = 0; i < arrowCount; i++) {
+                this.arrowTimer = stats.cooldown * atkSpeedMult;
+                for (let i = 0; i < stats.arrowCount; i++) {
                     const ax = px + (Math.random() - 0.5) * 200;
                     const ay = py + (Math.random() - 0.5) * 200;
                     this.projectiles.push({
                         x: ax, y: ay - 100,
                         vx: (Math.random() - 0.5) * 30,
                         vy: 250 + Math.random() * 100,
-                        damage: (8 + w.level * 3) * atkMult,
+                        damage: stats.damage * atkMult,
                         radius: 3,
                         life: 2,
                         type: 'arrow',
-                        color: WEAPON_DEFS.arrow_shower.color
+                        color: def.color
                     });
                 }
             }
         }
 
-        // ガーディアン
+        // ガーディアン — ゴーレム数・ダメージ成長タイプ
         if (this.weapons.guardian) {
             const w = this.weapons.guardian;
-            const guardianCount = Math.min(w.level, 3);
+            const def = WEAPON_DEFS.guardian;
+            const stats = getWeaponStats(def, w.level);
 
+            const guardianCount = stats.guardianCount;
             while (this.guardians.length < guardianCount) {
                 const angle = Math.random() * Math.PI * 2;
                 this.guardians.push({
                     x: px + Math.cos(angle) * 60,
                     y: py + Math.sin(angle) * 60,
-                    damage: (10 + w.level * 5) * atkMult,
+                    damage: stats.damage * atkMult,
                     radius: 12,
                     cooldown: 0,
-                    angle: 0
+                    angle: Math.random() * Math.PI * 2
                 });
             }
 
@@ -346,7 +518,7 @@ export class WeaponManager {
                 g.y = py + Math.sin(g.angle) * 60;
 
                 if (g.cooldown <= 0) {
-                    g.cooldown = 0.8 * atkSpeedMult;
+                    g.cooldown = stats.cooldown * atkSpeedMult;
                     let closest = null, closestDist = Infinity;
                     for (const e of onScreenEnemies) {
                         const d = Math.sqrt((e.x - g.x) ** 2 + (e.y - g.y) ** 2);
@@ -361,30 +533,32 @@ export class WeaponManager {
                             radius: 6,
                             life: 1.5,
                             type: 'guardian_attack',
-                            color: WEAPON_DEFS.guardian.color
+                            color: def.color
                         });
                     }
                 }
             }
         }
 
-        // ホーリークロス
+        // ホーリークロス — ダメージ・範囲成長タイプ
         if (this.weapons.holy_cross) {
             const w = this.weapons.holy_cross;
+            const def = WEAPON_DEFS.holy_cross;
+            const stats = getWeaponStats(def, w.level);
+
             this.crossTimer -= dt;
-            const rate = Math.max(0.8, (2.5 - w.level * 0.15) * atkSpeedMult);
-            const damage = (12 + w.level * 5) * atkMult;
+            const damage = stats.damage * atkMult;
+            const crossSize = stats.crossSize;
 
             if (this.crossTimer <= 0 && onScreenEnemies.length > 0) {
-                this.crossTimer = rate;
-                const crossSize = 100 + w.level * 20;
+                this.crossTimer = stats.cooldown * atkSpeedMult;
                 this.projectiles.push({
                     x: px, y: py,
                     width: 6, height: crossSize * 2,
                     damage: damage,
                     life: 0.4,
                     type: 'holy_cross',
-                    color: WEAPON_DEFS.holy_cross.color
+                    color: def.color
                 });
                 this.projectiles.push({
                     x: px, y: py,
@@ -392,7 +566,7 @@ export class WeaponManager {
                     damage: damage,
                     life: 0.4,
                     type: 'holy_cross',
-                    color: WEAPON_DEFS.holy_cross.color
+                    color: def.color
                 });
 
                 for (let i = onScreenEnemies.length - 1; i >= 0; i--) {
@@ -469,19 +643,20 @@ export class WeaponManager {
             }
         }
 
+        // 回転剣描画
         if (this.weapons.spinning_sword) {
             const w = this.weapons.spinning_sword;
-            const swordCount = Math.min(1 + Math.floor(w.level / 2), 4);
-            const swordRange = 40 + w.level * 5;
+            const def = WEAPON_DEFS.spinning_sword;
+            const stats = getWeaponStats(def, w.level);
             const px = this.player.getX();
             const py = this.player.getY();
 
-            for (let s = 0; s < swordCount; s++) {
-                const a = this.swordAngle + (s * Math.PI * 2 / swordCount);
-                const sx = px + Math.cos(a) * swordRange;
-                const sy = py + Math.sin(a) * swordRange;
+            for (let s = 0; s < stats.swordCount; s++) {
+                const a = this.swordAngle + (s * Math.PI * 2 / stats.swordCount);
+                const sx = px + Math.cos(a) * stats.rotationRadius;
+                const sy = py + Math.sin(a) * stats.rotationRadius;
 
-                ctx.fillStyle = '#e74c3c';
+                ctx.fillStyle = def.color;
                 ctx.beginPath();
                 ctx.arc(sx, sy, 8, 0, Math.PI * 2);
                 ctx.fill();
@@ -492,20 +667,23 @@ export class WeaponManager {
             }
         }
 
+        // 聖光陣描画
         if (this.weapons.holy_circle) {
             const w = this.weapons.holy_circle;
-            const range = 80 + w.level * 15;
+            const def = WEAPON_DEFS.holy_circle;
+            const stats = getWeaponStats(def, w.level);
             const px = this.player.getX();
             const py = this.player.getY();
 
             ctx.strokeStyle = 'rgba(243, 156, 18, 0.4)';
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(px, py, range, 0, Math.PI * 2);
+            ctx.arc(px, py, stats.radius, 0, Math.PI * 2);
             ctx.stroke();
             ctx.lineWidth = 1;
         }
 
+        // ポイズンクラウド描画
         for (const cloud of this.poisonClouds) {
             const alpha = cloud.life / cloud.maxLife;
             ctx.fillStyle = `rgba(46, 204, 113, ${alpha * 0.4})`;
@@ -514,6 +692,7 @@ export class WeaponManager {
             ctx.fill();
         }
 
+        // ガーディアン描画
         for (const g of this.guardians) {
             ctx.fillStyle = '#95a5a6';
             ctx.beginPath();
