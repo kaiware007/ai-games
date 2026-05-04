@@ -1,8 +1,0 @@
-{
-  "id": "slot5x5",
-  "title": "Slot 5x5",
-  "description": "5×5マス・最大5ライン対応のスロットゲーム。SPIN ボタンまたはスペースキーで回転。BET/LINE 調整可能。",
-  "created_at": "2026-04-27T20:46:20.434730",
-  "engine": "godot4",
-  "thumbnail": ""
-}

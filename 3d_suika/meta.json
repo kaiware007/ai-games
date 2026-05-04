@@ -1,8 +1,0 @@
-{
-  "id": "3d_suika",
-  "title": "3Dスイカゲーム",
-  "description": "3D風のスイカゲーム。タップしたX座標からフルーツをドロップ！",
-  "created_at": "2026-04-29T14:16:37.279670",
-  "engine": "godot4",
-  "thumbnail": ""
-}
