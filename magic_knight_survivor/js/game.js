@@ -1,135 +1,124 @@
-import { InputManager } from './input.js?v=1777827247';
-import { Player } from './player.js?v=1777827247';
-import { EnemyManager } from './enemy.js?v=1777827247';
-import { WeaponManager, WEAPON_DEFS, BUFF_DEFS } from './weapons.js?v=1777827247';
-import { ExpCrystal } from './exp_crystal.js?v=1777827247';
-import { HealItem } from './heal_item.js?v=1777827247';
-import { HUD } from './hud.js?v=1777827247';
-import { Camera } from './camera.js?v=1777827247';
-import { AudioManager } from './audio.js?v=1777827247';
+import { InputManager } from './input.js?v=1777865252';
+import { Player } from './player.js?v=1777865252';
+import { EnemyManager } from './enemy.js?v=1777865252';
+import { WeaponSystem } from './weapons.js?v=1777865252';
+import { BulletManager } from './bullet.js?v=1777865252';
+import { XPCrystal } from './xp_crystal.js?v=1777865252';
+import { LevelUpUI } from './levelup.js?v=1777865252';
+import { HUD } from './hud.js?v=1777865252';
 
-// ゲームクリア時間（秒）
-const GAME_CLEAR_TIME = 600; // 10分
+const WORLD_WIDTH = 2000;
+const WORLD_HEIGHT = 2000;
 
-// 武器・バフの獲得上限
-const MAX_WEAPON_TYPES = 5;
-const MAX_BUFF_TYPES = 5;
-// 武器・バフのレベル上限
-const MAX_LEVEL = 5;
+const ALL_WEAPON_IDS = [
+    'magic_bowl', 'spinning_sword', 'holy_aura', 'thunder',
+    'poison_cloud', 'shower_of_arrows', 'guardian', 'holy_cross'
+];
+
+const ALL_BUFF_IDS = [
+    'max_hp_up', 'attack_speed_up', 'attack_range_up'
+];
 
 export class Game {
     constructor(canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
+        
+        this.state = 'title'; // title, playing, paused, levelup, gameover
+        this.gameTime = 0;
+        this.lastTime = 0;
 
-        this.state = 'title';
-        this.input = new InputManager(canvas, () => this.state);
-        this.audio = new AudioManager();
-
-        this.player = new Player(0, 0);
-        this.enemyManager = new EnemyManager({});
-        this.weaponManager = new WeaponManager(this.player);
+        // コンポーネント
+        this.input = new InputManager(canvas);
+        this.player = new Player(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
+        this.enemies = new EnemyManager(WORLD_WIDTH, WORLD_HEIGHT);
+        this.bullets = new BulletManager();
+        this.weapons = new WeaponSystem(this.player, this.bullets, this.enemies);
+        this.xpCrystals = new XPCrystal();
+        this.levelUpUI = new LevelUpUI(canvas);
         this.hud = new HUD(canvas);
-        this.camera = new Camera(canvas.width, canvas.height);
 
-        this.expCrystals = [];
-        this.healItems = [];
-        this.score = 0;
-        this.time = 0;
-        this.levelUpChoices = [];
-
-        canvas.addEventListener('click', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const mx = e.clientX - rect.left;
-            const my = e.clientY - rect.top;
-            this.handleClick(mx, my);
-        });
-
-        canvas.addEventListener('touchstart', (e) => {
-            if (this.state === 'title' || this.state === 'gameover' || this.state === 'levelup' || this.state === 'gameclear') {
-                const touch = e.touches[0];
-                const rect = canvas.getBoundingClientRect();
-                const mx = touch.clientX - rect.left;
-                const my = touch.clientY - rect.top;
-                this.handleClick(mx, my);
-            }
-        }, { passive: true });
+        // プレイヤーにinputをセット（毒雲用）
+        this.player.input = this.input;
     }
 
     init() {
-        this.player.init();
-        this.player.x = 0;
-        this.player.y = 0;
-        this.enemyManager.init();
-        this.weaponManager.init();
-        this.weaponManager.addWeapon('magic_bowl');
-        this.expCrystals = [];
-        this.healItems = [];
-        this.score = 0;
-        this.time = 0;
-        this.hud.setMenuActive(false);
+        this.state = 'title';
+        this.gameTime = 0;
+        this.reset();
     }
 
     start() {
-        // ゲーム開始時にオーディオを初期化（効果音が即座に使えるように）
-        this.audio.init();
-        this.init();
+        this.reset();
         this.state = 'playing';
-        this.audio.startBGM();
+        this.lastTime = performance.now();
     }
 
-    handleClick(mx, my) {
-        if (this.state === 'title') { this.start(); return; }
-        if (this.state === 'gameover') { this.start(); return; }
-        if (this.state === 'gameclear') { this.start(); return; }
-
-        if (this.state === 'levelup') {
-            const idx = this.hud.getMenuSelection(mx, my);
-            if (idx >= 0 && idx < this.levelUpChoices.length) {
-                this.selectUpgrade(this.levelUpChoices[idx]);
-            }
-            return;
+    pause() {
+        if (this.state === 'playing') {
+            this.state = 'paused';
         }
+    }
+
+    resume() {
+        if (this.state === 'paused') {
+            this.state = 'playing';
+            this.lastTime = performance.now();
+        }
+    }
+
+    gameOver() {
+        this.state = 'gameover';
+    }
+
+    reset() {
+        this.gameTime = 0;
+        this.player.init();
+        this.player.x = WORLD_WIDTH / 2;
+        this.player.y = WORLD_HEIGHT / 2;
+        this.enemies.init();
+        this.bullets.clear();
+        this.weapons.init();
+        this.xpCrystals.clear();
+        this.levelUpUI.init();
+        
+        // 初期武器としてマジックボウルを付与
+        this.player.addWeapon('magic_bowl');
     }
 
     update(dt) {
         if (this.state !== 'playing') return;
 
+        this.gameTime += dt;
         this.input.update();
-        this.time += dt;
 
-        if (this.time >= GAME_CLEAR_TIME) {
-            this.state = 'gameclear';
-            this.audio.playGameClear();
-            return;
+        // プレイヤー更新
+        this.player.update(dt, this.input, this.enemies);
+
+        // 敵更新
+        this.enemies.update(dt, this.player, this.bullets, this.gameTime);
+
+        // 武器更新
+        this.weapons.update(dt, this.player, this.enemies);
+
+        // 弾更新
+        this.bullets.update(dt, this.enemies, this.player);
+
+        // 経験値クリスタル更新
+        this.xpCrystals.update(dt, this.player);
+
+        // 敵死亡時にクリスタルをドロップ
+        // （enemies.update内で処理済み）
+
+        // ゲームオーバー判定
+        if (this.player.isDead()) {
+            this.gameOver();
         }
 
-        this.player.update(dt, this.input, this);
-        this.camera.update(this.player.getX(), this.player.getY());
-        this.enemyManager.update(dt, this.player, this);
-        this.weaponManager.update(dt, this.enemyManager.getEnemies(), this);
-
-        for (const c of this.expCrystals) {
-            c.update(dt);
+        // レベルUP判定
+        if (this.player.checkLevelUp()) {
+            this.handleLevelUp();
         }
-
-        for (let i = this.healItems.length - 1; i >= 0; i--) {
-            this.healItems[i].update(dt);
-            if (!this.healItems[i].isAlive()) {
-                this.healItems.splice(i, 1);
-            }
-        }
-
-        if (!this.player.isAlive()) {
-            this.state = 'gameover';
-            this.audio.playGameOver();
-        }
-
-        const currentLevel = this.player.getLevel();
-        if (this.player._lastLevel !== undefined && currentLevel > this.player._lastLevel) {
-            this.showLevelUp();
-        }
-        this.player._lastLevel = currentLevel;
     }
 
     draw() {
@@ -137,271 +126,253 @@ export class Game {
         const w = this.canvas.width;
         const h = this.canvas.height;
 
+        // 背景クリア
         ctx.fillStyle = '#1a1a2e';
         ctx.fillRect(0, 0, w, h);
 
-        if (this.state === 'title') { this.drawTitle(ctx); return; }
-
-        ctx.save();
-        this.camera.apply(ctx);
-
-        this.drawGrid(ctx);
-
-        for (const item of this.healItems) {
-            item.draw(ctx, this.camera);
+        if (this.state === 'title') {
+            this.drawTitle(ctx);
+            return;
         }
 
-        for (const c of this.expCrystals) {
-            c.draw(ctx, this.camera);
+        if (this.state === 'gameover') {
+            this.drawGameOver(ctx);
+            return;
         }
 
-        this.enemyManager.draw(ctx, this.camera);
-        this.weaponManager.draw(ctx, this.camera);
-        this.player.draw(ctx, this.camera);
+        // カメラ位置
+        const cameraX = this.enemies.cameraX;
+        const cameraY = this.enemies.cameraY;
 
-        ctx.restore();
+        // グリッド描画（世界感）
+        this.drawGrid(ctx, cameraX, cameraY);
 
-        this.hud.draw(ctx, this.player, this);
+        // 経験値クリスタル
+        this.xpCrystals.draw(ctx, cameraX, cameraY);
 
+        // 敵
+        this.enemies.draw(ctx, cameraX, cameraY);
+
+        // 弾
+        this.bullets.draw(ctx, cameraX, cameraY);
+
+        // 武器エフェクト
+        this.weapons.draw(ctx, cameraX, cameraY, this.player);
+
+        // プレイヤー
+        this.player.draw(ctx, cameraX, cameraY);
+
+        // HUD
+        this.hud.drawWithPlayer(ctx, this.player, this.gameTime, this.enemies.kills);
+
+        // レベルUP UI
         if (this.state === 'levelup') {
-            this.hud.drawLevelUpMenu(ctx, this.levelUpChoices);
+            this.levelUpUI.draw(ctx);
         }
-        if (this.state === 'gameover') { this.drawGameOver(ctx); }
-        if (this.state === 'gameclear') { this.drawGameClear(ctx); }
+
+        // パウズ表示
+        if (this.state === 'paused') {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(0, 0, w, h);
+            ctx.fillStyle = '#FFF';
+            ctx.font = 'bold 48px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('PAUSE', w / 2, h / 2);
+            ctx.font = '20px sans-serif';
+            ctx.fillText('再開するにはクリック', w / 2, h / 2 + 40);
+        }
     }
 
-    drawGrid(ctx) {
-        const gridSize = 50;
-        const startX = Math.floor(this.camera.getX() / gridSize) * gridSize;
-        const startY = Math.floor(this.camera.getY() / gridSize) * gridSize;
-        const endX = startX + this.camera.getWidth() + gridSize;
-        const endY = startY + this.camera.getHeight() + gridSize;
-
+    drawGrid(ctx, cameraX, cameraY) {
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
         ctx.lineWidth = 1;
 
-        for (let x = startX; x <= endX; x += gridSize) {
+        const gridSize = 100;
+        const startX = -(cameraX % gridSize);
+        const startY = -(cameraY % gridSize);
+
+        for (let x = startX; x < this.canvas.width; x += gridSize) {
             ctx.beginPath();
-            ctx.moveTo(x, startY);
-            ctx.lineTo(x, endY);
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, this.canvas.height);
             ctx.stroke();
         }
-        for (let y = startY; y <= endY; y += gridSize) {
+
+        for (let y = startY; y < this.canvas.height; y += gridSize) {
             ctx.beginPath();
-            ctx.moveTo(startX, y);
-            ctx.lineTo(endX, y);
+            ctx.moveTo(0, y);
+            ctx.lineTo(this.canvas.width, y);
             ctx.stroke();
         }
-        ctx.lineWidth = 1;
     }
 
     drawTitle(ctx) {
         const w = this.canvas.width;
         const h = this.canvas.height;
 
-        ctx.fillStyle = '#f1c40f';
-        ctx.font = 'bold 28px monospace';
+        // タイトル
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 48px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('マジックナイト', w / 2, h / 2 - 60);
-        ctx.fillText('サバイバー', w / 2, h / 2 - 25);
+        ctx.fillText('・サバイバー', w / 2, h / 2 - 10);
 
-        ctx.fillStyle = '#fff';
-        ctx.font = '14px monospace';
-        ctx.fillText('10分間生存して生き残れ！', w / 2, h / 2 + 20);
+        // 説明
+        ctx.fillStyle = '#FFF';
+        ctx.font = '18px sans-serif';
+        ctx.fillText('敵を倒して経験値を集め、武器を強化せよ！', w / 2, h / 2 + 40);
 
-        ctx.fillStyle = '#3498db';
-        ctx.font = '16px monospace';
-        ctx.fillText('タップまたはクリックして開始', w / 2, h / 2 + 60);
+        // スタート
+        ctx.fillStyle = '#4FC3F7';
+        ctx.font = 'bold 24px sans-serif';
+        const pulse = Math.sin(Date.now() / 300) * 0.3 + 0.7;
+        ctx.globalAlpha = pulse;
+        ctx.fillText('クリックしてスタート', w / 2, h / 2 + 100);
+        ctx.globalAlpha = 1;
 
-        ctx.fillStyle = '#888';
-        ctx.font = '12px monospace';
-        ctx.fillText('WASD/矢印キーで移動 | スマホはタッチで移動', w / 2, h / 2 + 100);
+        // 操作方法
+        ctx.fillStyle = '#BDC3C7';
+        ctx.font = '14px sans-serif';
+        ctx.fillText('PC: WASD/矢印キーで移動 | スマホ: タップ/ドラッグで移動', w / 2, h / 2 + 150);
     }
 
     drawGameOver(ctx) {
         const w = this.canvas.width;
         const h = this.canvas.height;
 
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
         ctx.fillRect(0, 0, w, h);
 
-        ctx.fillStyle = '#e74c3c';
-        ctx.font = 'bold 28px monospace';
+        ctx.fillStyle = '#F44336';
+        ctx.font = 'bold 48px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('GAME OVER', w / 2, h / 2 - 40);
+        ctx.fillText('GAME OVER', w / 2, h / 2 - 60);
 
-        ctx.fillStyle = '#fff';
-        ctx.font = '16px monospace';
-        const minutes = Math.floor(this.time / 60);
-        const seconds = Math.floor(this.time % 60);
-        ctx.fillText(`生存時間: ${minutes}:${seconds.toString().padStart(2, '0')}`, w / 2, h / 2 + 10);
-        ctx.fillText(`スコア: ${this.score}`, w / 2, h / 2 + 35);
-        ctx.fillText(`到達レベル: ${this.player.level}`, w / 2, h / 2 + 60);
+        // 統計
+        ctx.fillStyle = '#FFF';
+        ctx.font = '20px sans-serif';
+        const minutes = Math.floor(this.gameTime / 60);
+        const seconds = Math.floor(this.gameTime % 60);
+        ctx.fillText(`生存時間: ${minutes}:${seconds.toString().padStart(2, '0')}`, w / 2, h / 2);
+        ctx.fillText(`倒した敵: ${this.enemies.kills}`, w / 2, h / 2 + 30);
+        ctx.fillText(`レベル: ${this.player.level}`, w / 2, h / 2 + 60);
 
-        ctx.fillStyle = '#3498db';
-        ctx.font = '14px monospace';
-        ctx.fillText('タップまたはクリックしてリスタート', w / 2, h / 2 + 100);
+        const score = this.enemies.kills * 10 + Math.floor(this.gameTime);
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 24px sans-serif';
+        ctx.fillText(`スコア: ${score}`, w / 2, h / 2 + 100);
+
+        // リスタート
+        ctx.fillStyle = '#4FC3F7';
+        ctx.font = 'bold 20px sans-serif';
+        const pulse = Math.sin(Date.now() / 300) * 0.3 + 0.7;
+        ctx.globalAlpha = pulse;
+        ctx.fillText('クリックしてリスタート', w / 2, h / 2 + 150);
+        ctx.globalAlpha = 1;
     }
 
-    drawGameClear(ctx) {
-        const w = this.canvas.width;
-        const h = this.canvas.height;
-
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(0, 0, w, h);
-
-        ctx.fillStyle = '#2ecc71';
-        ctx.font = 'bold 28px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('GAME CLEAR!', w / 2, h / 2 - 50);
-
-        ctx.fillStyle = '#f1c40f';
-        ctx.font = '18px monospace';
-        ctx.fillText('10分間生存に成功した！', w / 2, h / 2 - 15);
-
-        ctx.fillStyle = '#fff';
-        ctx.font = '16px monospace';
-        ctx.fillText(`最終スコア: ${this.score}`, w / 2, h / 2 + 20);
-        ctx.fillText(`到達レベル: ${this.player.level}`, w / 2, h / 2 + 45);
-
-        ctx.fillStyle = '#3498db';
-        ctx.font = '14px monospace';
-        ctx.fillText('タップまたはクリックしてリスタート', w / 2, h / 2 + 90);
-    }
-
-    isFullyMaxed() {
-        const ownedWeapons = Object.keys(this.weaponManager.weapons);
-        const ownedBuffs = Object.keys(this.weaponManager.buffs);
-
-        if (ownedWeapons.length < MAX_WEAPON_TYPES || ownedBuffs.length < MAX_BUFF_TYPES) {
-            return false;
-        }
-        for (const id of ownedWeapons) {
-            if (this.weaponManager.weapons[id].level < MAX_LEVEL) return false;
-        }
-        for (const id of ownedBuffs) {
-            if (this.weaponManager.buffs[id] < MAX_LEVEL) return false;
-        }
-        return true;
-    }
-
-    showLevelUp() {
+    handleLevelUp() {
         this.state = 'levelup';
-        this.audio.playLevelUp();
 
-        if (this.isFullyMaxed()) {
-            const choices = [
-                { id: 'score_bonus', name: '1000点ボーナス', desc: 'スコアを1000追加！', color: '#f1c40f', icon: '💎', currentLevel: 0, type: 'score_bonus' },
-                { id: 'heal_full', name: '体力全回復', desc: 'HPを最大まで回復！', color: '#e74c3c', icon: '❤️', currentLevel: 0, type: 'heal_full' }
-            ];
-            choices.sort(() => Math.random() - 0.5);
-            this.levelUpChoices = choices;
-            this.hud.setMenuActive(true, choices);
-            return;
+        // 3つのカードをランダムに選択
+        const available = [];
+        
+        // 既存武器の強化候補
+        const existingWeapons = this.player.weapons.map(w => w.id);
+        for (const id of existingWeapons) {
+            available.push({ id: id, level: this.player.weapons.find(w => w.id === id).level });
         }
 
-        const weaponIds = Object.keys(WEAPON_DEFS);
-        const buffIds = Object.keys(BUFF_DEFS);
-        const ownedWeapons = Object.keys(this.weaponManager.weapons);
-        const ownedBuffs = Object.keys(this.weaponManager.buffs);
-        const choices = [];
+        // 新武器候補
+        const newWeaponIds = ALL_WEAPON_IDS.filter(id => !existingWeapons.includes(id));
+        for (const id of newWeaponIds) {
+            available.push({ id: id, level: 0 });
+        }
 
-        if (ownedWeapons.length < MAX_WEAPON_TYPES) {
-            const notOwnedWeapons = weaponIds.filter(id => !ownedWeapons.includes(id));
-            const pool = notOwnedWeapons.length > 0 ? notOwnedWeapons : weaponIds.filter(id => this.weaponManager.weapons[id].level < MAX_LEVEL);
-            for (const id of pool) {
-                const def = WEAPON_DEFS[id];
-                const currentLevel = ownedWeapons.includes(id) ? this.weaponManager.weapons[id].level : 0;
-                if (currentLevel < MAX_LEVEL) {
-                    choices.push({ id, ...def, currentLevel, type: 'weapon' });
+        // バフも追加
+        for (const id of ALL_BUFF_IDS) {
+            if (!this.player.buffs.find(b => b.id === id)) {
+                available.push({ id: id, level: 0, isBuff: true });
+            }
+        }
+
+        // 3つランダム選択
+        const cards = [];
+        const shuffled = [...available].sort(() => Math.random() - 0.5);
+        for (let i = 0; i < Math.min(3, shuffled.length); i++) {
+            cards.push(shuffled[i]);
+        }
+
+        this.levelUpUI.show(cards);
+
+        // カード選択後の処理
+        const checkSelection = setInterval(() => {
+            if (!this.levelUpUI.isShowing()) {
+                const selection = this.levelUpUI.getSelection();
+                if (selection) {
+                    if (selection.isBuff) {
+                        // バフを追加
+                        const existingBuff = this.player.buffs.find(b => b.id === selection.id);
+                        if (existingBuff) {
+                            existingBuff.level++;
+                        } else {
+                            this.player.buffs.push({ id: selection.id, level: 1 });
+                        }
+                    } else {
+                        this.player.addWeapon(selection.id);
+                    }
                 }
+                this.state = 'playing';
+                this.lastTime = performance.now();
+                clearInterval(checkSelection);
             }
-        } else {
-            for (const id of ownedWeapons) {
-                const def = WEAPON_DEFS[id];
-                const currentLevel = this.weaponManager.weapons[id].level;
-                if (currentLevel < MAX_LEVEL) {
-                    choices.push({ id, ...def, currentLevel, type: 'weapon' });
-                }
-            }
-        }
-
-        if (ownedBuffs.length < MAX_BUFF_TYPES) {
-            const notOwnedBuffs = buffIds.filter(id => !ownedBuffs.includes(id));
-            const pool = notOwnedBuffs.length > 0 ? notOwnedBuffs : ownedBuffs.filter(id => this.weaponManager.buffs[id] < MAX_LEVEL);
-            for (const id of pool) {
-                const def = BUFF_DEFS[id];
-                const currentLevel = ownedBuffs.includes(id) ? this.weaponManager.buffs[id] : 0;
-                if (currentLevel < MAX_LEVEL) {
-                    choices.push({ id, ...def, currentLevel, type: 'buff' });
-                }
-            }
-        } else {
-            for (const id of ownedBuffs) {
-                const def = BUFF_DEFS[id];
-                const currentLevel = this.weaponManager.buffs[id];
-                if (currentLevel < MAX_LEVEL) {
-                    choices.push({ id, ...def, currentLevel, type: 'buff' });
-                }
-            }
-        }
-
-        if (choices.length < 3) {
-            while (choices.length < 3) {
-                const pick = choices[Math.floor(Math.random() * choices.length)];
-                choices.push({ ...pick });
-            }
-        }
-
-        const shuffled = choices.sort(() => Math.random() - 0.5);
-        this.levelUpChoices = shuffled.slice(0, 3);
-        this.hud.setMenuActive(true, this.levelUpChoices);
+        }, 100);
     }
-
-    selectUpgrade(choice) {
-        if (choice.type === 'weapon') {
-            this.weaponManager.addWeapon(choice.id);
-        } else if (choice.type === 'buff') {
-            this.weaponManager.addBuff(choice.id);
-        } else if (choice.type === 'score_bonus') {
-            this.score += 1000;
-        } else if (choice.type === 'heal_full') {
-            this.player.hp = this.player.maxHp;
-        }
-        this.hud.setMenuActive(false);
-        this.state = 'playing';
-    }
-
-    onEnemyKilled(enemy) {
-        this.score += enemy.score || 10;
-        this.audio.playHit();
-
-        const expMult = this.weaponManager.getExpMultiplier();
-        const expValue = Math.max(1, Math.floor((Math.random() * 3 + 1) * expMult));
-        const crystal = new ExpCrystal(enemy.x, enemy.y, expValue);
-        this.expCrystals.push(crystal);
-
-        if (Math.random() < 0.02) {
-            const healAmount = 20;
-            const healItem = new HealItem(enemy.x, enemy.y, healAmount);
-            this.healItems.push(healItem);
-        }
-    }
-
-    onItemCollected() {
-        this.audio.playCollect();
-    }
-
-    onPlayerDamaged() {
-        this.audio.playDamage();
-    }
-
-    gameOver() { this.state = 'gameover'; }
-    restart() { this.start(); }
-    pause() { if (this.state === 'playing') this.state = 'paused'; }
-    resume() { if (this.state === 'paused') this.state = 'playing'; }
-    isRunning() { return this.state === 'playing' || this.state === 'paused'; }
-    isPaused() { return this.state === 'paused'; }
-    getWeaponChoices(level) { return this.levelUpChoices; }
-    getState() { return this.state; }
 }
+
+// ゲーム開始
+window.addEventListener('load', () => {
+    const canvas = document.getElementById('gameCanvas');
+    canvas.width = 800;
+    canvas.height = 600;
+
+    const game = new Game(canvas);
+    game.init();
+
+    // クリックでスタート/リスタート
+    canvas.addEventListener('click', () => {
+        if (game.state === 'title') {
+            game.start();
+        } else if (game.state === 'gameover') {
+            game.start();
+        } else if (game.state === 'paused') {
+            game.resume();
+        }
+    });
+
+    // タッチでスタート
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (game.state === 'title') {
+            game.start();
+        } else if (game.state === 'gameover') {
+            game.start();
+        } else if (game.state === 'paused') {
+            game.resume();
+        }
+    }, { passive: false });
+
+    // ゲームループ
+    const gameLoop = (timestamp) => {
+        const dt = Math.min((timestamp - game.lastTime) / 1000, 0.05);
+        game.lastTime = timestamp;
+
+        game.update(dt);
+        game.draw();
+
+        requestAnimationFrame(gameLoop);
+    };
+
+    game.lastTime = performance.now();
+    requestAnimationFrame(gameLoop);
+});

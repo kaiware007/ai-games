@@ -1,194 +1,154 @@
-// ゲームクリア時間（秒）
-const GAME_CLEAR_TIME = 600;
-
-// 武器・バフの表示色
-const WEAPON_COLOR = '#FF9800'; // オレンジ
-const BUFF_COLOR = '#8BC34A';   // 黄緑
-
 export class HUD {
     constructor(canvas) {
         this.canvas = canvas;
-        this.menuActive = false;
-        this.choices = [];
-        this.selection = -1;
     }
 
-    draw(ctx, player, game) {
+    init() {
+        // 初期化
+    }
+
+    update(player, gameTime, kills) {
+        // 毎フレームの更新
+    }
+
+    draw(ctx) {
+        // 引数でプレイヤー情報を受けるように修正
+    }
+
+    drawWithPlayer(ctx, player, gameTime, kills) {
         const w = this.canvas.width;
         const h = this.canvas.height;
 
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-        ctx.fillRect(0, 0, w, 40);
+        // HPバー
+        const hpBarWidth = 200;
+        const hpBarHeight = 20;
+        const hpX = 20;
+        const hpY = 20;
+        const hpPercent = player.hp / player.maxHP;
 
-        ctx.font = '14px monospace';
-        ctx.textAlign = 'left';
-
-        // ライフバー
-        const hpRatio = player.hp / player.maxHp;
+        // HPバー背景
         ctx.fillStyle = '#333';
-        ctx.fillRect(10, 8, 150, 12);
-        ctx.fillStyle = hpRatio > 0.5 ? '#2ecc71' : hpRatio > 0.25 ? '#f39c12' : '#e74c3c';
-        ctx.fillRect(10, 8, 150 * hpRatio, 12);
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(10, 8, 150, 12);
+        ctx.beginPath();
+        ctx.roundRect(hpX, hpY, hpBarWidth, hpBarHeight, 5);
+        ctx.fill();
 
-        ctx.fillStyle = '#fff';
-        ctx.font = '11px monospace';
-        ctx.fillText(`HP ${Math.ceil(player.hp)}/${player.maxHp}`, 15, 18);
+        // HPバー
+        const hpColor = hpPercent > 0.5 ? '#4CAF50' : hpPercent > 0.25 ? '#FF9800' : '#F44336';
+        ctx.fillStyle = hpColor;
+        ctx.beginPath();
+        ctx.roundRect(hpX, hpY, hpBarWidth * hpPercent, hpBarHeight, 5);
+        ctx.fill();
 
-        // 経験値ゲージ
-        const expRatio = player.experience / player.experienceToNext;
-        ctx.fillStyle = '#333';
-        ctx.fillRect(10, 24, 150, 8);
-        ctx.fillStyle = '#3498db';
-        ctx.fillRect(10, 24, 150 * expRatio, 8);
-        ctx.strokeStyle = '#fff';
-        ctx.strokeRect(10, 24, 150, 8);
-
-        // レベル
-        ctx.fillStyle = '#f1c40f';
-        ctx.font = 'bold 14px monospace';
+        // HPテキスト
+        ctx.fillStyle = '#FFF';
+        ctx.font = 'bold 14px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`Lv.${player.level}`, w / 2, 18);
+        ctx.fillText(`${Math.ceil(player.hp)} / ${player.maxHP}`, hpX + hpBarWidth / 2, hpY + 15);
+
+        // レベル表示
+        ctx.textAlign = 'left';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.fillStyle = '#FFD700';
+        ctx.fillText(`Lv.${player.level}`, hpX, hpY + 45);
+
+        // 経験値バー
+        const xpBarWidth = 150;
+        const xpBarHeight = 10;
+        const xpX = hpX;
+        const xpY = hpY + 55;
+        const xpPercent = player.xp / player.xpToNextLevel;
+
+        ctx.fillStyle = '#333';
+        ctx.beginPath();
+        ctx.roundRect(xpX, xpY, xpBarWidth, xpBarHeight, 3);
+        ctx.fill();
+
+        ctx.fillStyle = '#E040FB';
+        ctx.beginPath();
+        ctx.roundRect(xpX, xpY, xpBarWidth * xpPercent, xpBarHeight, 3);
+        ctx.fill();
+
+        // 時間表示
+        const minutes = Math.floor(gameTime / 60);
+        const seconds = Math.floor(gameTime % 60);
+        ctx.textAlign = 'right';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.fillStyle = '#FFF';
+        ctx.fillText(`${minutes}:${seconds.toString().padStart(2, '0')}`, w - 20, 40);
 
         // スコア
-        ctx.fillStyle = '#fff';
-        ctx.font = '14px monospace';
-        ctx.textAlign = 'right';
-        ctx.fillText(`Score: ${game.score}`, w - 10, 18);
+        const score = kills * 10 + Math.floor(gameTime);
+        ctx.font = '16px sans-serif';
+        ctx.fillStyle = '#FFD700';
+        ctx.fillText(`スコア: ${score}`, w - 20, 65);
 
-        // タイマー（残り時間表示）
-        const remaining = Math.max(0, GAME_CLEAR_TIME - game.time);
-        const minutes = Math.floor(remaining / 60);
-        const seconds = Math.floor(remaining % 60);
-        ctx.fillText(`Time: ${minutes}:${seconds.toString().padStart(2, '0')}`, w - 10, 36);
+        // クリル数
+        ctx.fillStyle = '#FFF';
+        ctx.fillText(`倒した敵: ${kills}`, w - 20, 90);
 
-        // 武器情報（右下）— 武器はオレンジ、バフは黄緑
-        const weapons = game.weaponManager.getWeapons();
-        const buffs = game.weaponManager.getBuffs();
-        const allItems = [...weapons, ...buffs];
-        if (allItems.length > 0) {
+        // 所持武器リスト（右上）
+        const weapons = player.getWeapons();
+        const buffs = player.getBuffs();
+        
+        if (weapons.length > 0 || buffs.length > 0) {
             ctx.textAlign = 'right';
-            ctx.font = '11px monospace';
-            allItems.forEach((item, i) => {
-                const prefix = item.type === 'buff' ? '★' : '⚔';
-                const color = item.type === 'buff' ? BUFF_COLOR : WEAPON_COLOR;
-                ctx.fillStyle = color;
-                ctx.fillText(`${prefix}${item.name} Lv.${item.level}`, w - 10, 58 + i * 14);
-            });
-        }
-    }
+            ctx.font = 'bold 14px sans-serif';
+            ctx.fillStyle = '#FFF';
+            ctx.fillText('所持アイテム', w - 20, 120);
 
-    drawLevelUpMenu(ctx, choices) {
-        const w = this.canvas.width;
-        const h = this.canvas.height;
-
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(0, 0, w, h);
-
-        ctx.fillStyle = '#f1c40f';
-        ctx.font = 'bold 24px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('LEVEL UP!', w / 2, 60);
-
-        ctx.fillStyle = '#fff';
-        ctx.font = '14px monospace';
-        ctx.fillText('武器かバフを選んで強化して！', w / 2, 90);
-
-        const cardWidth = 140;
-        const cardHeight = 180;
-        const gap = 20;
-        const totalWidth = cardWidth * 3 + gap * 2;
-        const startX = (w - totalWidth) / 2;
-        const startY = 120;
-
-        this.choices = choices;
-
-        choices.forEach((choice, i) => {
-            const x = startX + i * (cardWidth + gap);
-            const y = startY;
-
-            const isSelected = (i === this.selection);
-            ctx.fillStyle = isSelected ? '#f39c12' : '#2c3e50';
-            ctx.strokeStyle = isSelected ? '#f1c40f' : '#34495e';
-            ctx.lineWidth = isSelected ? 3 : 2;
-
-            ctx.beginPath();
-            ctx.roundRect(x, y, cardWidth, cardHeight, 10);
-            ctx.fill();
-            ctx.stroke();
-            ctx.lineWidth = 1;
-
-            // 武器色インジケーター
-            ctx.fillStyle = choice.color || '#9b59b6';
-            ctx.beginPath();
-            ctx.arc(x + cardWidth / 2, y + 40, 25, 0, Math.PI * 2);
-            ctx.fill();
-
-            // バフならアイコン表示
-            if (choice.type === 'buff' && choice.icon) {
-                ctx.fillStyle = '#fff';
-                ctx.font = '20px monospace';
-                ctx.textAlign = 'center';
-                ctx.fillText(choice.icon, x + cardWidth / 2, y + 46);
+            let itemY = 140;
+            ctx.font = '12px sans-serif';
+            
+            for (const weapon of weapons) {
+                ctx.fillStyle = '#FF9800'; // 武器はオレンジ
+                const name = this.getWeaponName(weapon.id);
+                ctx.fillText(`${this.getWeaponIcon(weapon.id)} ${name} Lv.${weapon.level}`, w - 20, itemY);
+                itemY += 18;
             }
 
-            // 名前 — 武器はオレンジ、バフは黄緑
-            const nameColor = choice.type === 'buff' ? BUFF_COLOR : WEAPON_COLOR;
-            ctx.fillStyle = nameColor;
-            ctx.font = 'bold 12px monospace';
-            ctx.textAlign = 'center';
-            const nameLine = choice.type === 'buff' ? `★ ${choice.name}` : choice.name;
-            ctx.fillText(nameLine, x + cardWidth / 2, y + 80);
-
-            // 説明
-            ctx.fillStyle = '#bbb';
-            ctx.font = '10px monospace';
-            const desc = choice.desc || '';
-            const words = desc.match(/.{1,10}/g) || [];
-            words.forEach((word, j) => {
-                ctx.fillText(word, x + cardWidth / 2, y + 100 + j * 14);
-            });
-
-            // レベル表示
-            if (choice.currentLevel > 0) {
-                ctx.fillStyle = nameColor;
-                ctx.font = 'bold 12px monospace';
-                ctx.fillText(`強化! Lv.${choice.currentLevel} → Lv.${choice.currentLevel + 1}`, x + cardWidth / 2, y + 165);
-            } else {
-                ctx.fillStyle = nameColor;
-                ctx.font = 'bold 12px monospace';
-                ctx.fillText(choice.type === 'buff' ? '新規バフ!' : '新規獲得!', x + cardWidth / 2, y + 165);
-            }
-        });
-    }
-
-    isMenuActive() { return this.menuActive; }
-
-    setMenuActive(active, choices) {
-        this.menuActive = active;
-        this.choices = choices || [];
-        this.selection = -1;
-    }
-
-    getMenuSelection(mx, my) {
-        const w = this.canvas.width;
-
-        const cardWidth = 140;
-        const cardHeight = 180;
-        const gap = 20;
-        const totalWidth = cardWidth * 3 + gap * 2;
-        const startX = (w - totalWidth) / 2;
-        const startY = 120;
-
-        for (let i = 0; i < 3; i++) {
-            const x = startX + i * (cardWidth + gap);
-            const y = startY;
-            if (mx >= x && mx <= x + cardWidth && my >= y && my <= y + cardHeight) {
-                return i;
+            for (const buff of buffs) {
+                ctx.fillStyle = '#8BC34A'; // バフは黄緑
+                const name = this.getBuffName(buff.id);
+                ctx.fillText(`★ ${name} Lv.${buff.level}`, w - 20, itemY);
+                itemY += 18;
             }
         }
-        return -1;
+    }
+
+    getWeaponName(weaponId) {
+        const names = {
+            magic_bowl: 'マジックボウル',
+            spinning_sword: '回転剣',
+            holy_aura: '聖光陣',
+            thunder: '雷撃',
+            poison_cloud: 'ポイズンクラウド',
+            shower_of_arrows: 'シャワーオブアロウ',
+            guardian: 'ガーディアン',
+            holy_cross: 'ホーリークロス'
+        };
+        return names[weaponId] || weaponId;
+    }
+
+    getWeaponIcon(weaponId) {
+        const icons = {
+            magic_bowl: '🔮',
+            spinning_sword: '⚔️',
+            holy_aura: '✨',
+            thunder: '⚡',
+            poison_cloud: '☁️',
+            shower_of_arrows: '🏹',
+            guardian: '🗿',
+            holy_cross: '✝️'
+        };
+        return icons[weaponId] || '⚔️';
+    }
+
+    getBuffName(buffId) {
+        const names = {
+            max_hp_up: 'マックスHPアップ',
+            attack_speed_up: '攻撃速度アップ',
+            attack_range_up: '攻撃範囲拡大'
+        };
+        return names[buffId] || buffId;
     }
 }

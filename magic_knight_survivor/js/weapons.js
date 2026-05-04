@@ -1,546 +1,525 @@
-// 武器定義
-export const WEAPON_DEFS = {
-    magic_bowl: { name: 'マジックボウル', desc: '最も近い敵に魔法弾を発射', color: '#9b59b6' },
-    spinning_sword: { name: '回転剣', desc: '周囲を剣が回転して近接攻撃', color: '#e74c3c' },
-    holy_circle: { name: '聖光陣', desc: '周囲に光の陣を張り範囲ダメージ', color: '#f39c12' },
-    thunder: { name: '雷撃', desc: 'ランダムな敵に雷を落とす', color: '#3498db' },
-    poison_cloud: { name: 'ポイズンクラウド', desc: '歩いた跡に残る毒雲', color: '#2ecc71' },
-    arrow_shower: { name: 'シャワーオブアロウ', desc: '上空から矢が降る', color: '#1abc9c' },
-    guardian: { name: 'ガーディアン', desc: '味方ゴーレムを召喚', color: '#95a5a6' },
-    holy_cross: { name: 'ホーリークロス', desc: '縦横に光の十字架を放つ', color: '#f1c40f' }
+const WEAPON_CONFIG = {
+    magic_bowl: {
+        name: 'マジックボウル',
+        damage: 15,
+        cooldown: 0.8,
+        bulletSpeed: 400,
+        bulletSize: 6,
+        color: '#4FC3F7'
+    },
+    spinning_sword: {
+        name: '回転剣',
+        damage: 20,
+        cooldown: 0, // 常時回転
+        rotationSpeed: 3,
+        swordLength: 40,
+        swordWidth: 8,
+        color: '#FFD700'
+    },
+    holy_aura: {
+        name: '聖光陣',
+        damage: 10,
+        cooldown: 2.0,
+        radius: 80,
+        color: '#FFF176'
+    },
+    thunder: {
+        name: '雷撃',
+        damage: 30,
+        cooldown: 2.5,
+        hitRadius: 40,
+        color: '#FFEB3B'
+    },
+    poison_cloud: {
+        name: 'ポイズンクラウド',
+        damage: 5,
+        cooldown: 0.5,
+        cloudRadius: 30,
+        cloudDuration: 3.0,
+        color: '#9C27B0'
+    },
+    shower_of_arrows: {
+        name: 'シャワーオブアロウ',
+        damage: 12,
+        cooldown: 1.5,
+        arrowCount: 5,
+        arrowSpeed: 300,
+        color: '#8BC34A'
+    },
+    guardian: {
+        name: 'ガーディアン',
+        damage: 25,
+        cooldown: 0, // 常時攻撃
+        summonCount: 1,
+        guardianSpeed: 150,
+        color: '#795548'
+    },
+    holy_cross: {
+        name: 'ホーリークロス',
+        damage: 18,
+        cooldown: 1.8,
+        beamLength: 200,
+        beamWidth: 12,
+        color: '#FFFFFF'
+    }
 };
 
-// バフ定義
-export const BUFF_DEFS = {
-    max_hp_up: { name: 'マックスHPアップ', desc: '最大HPを15増加', color: '#e74c3c', icon: '🔴' },
-    heal_up: { name: '回復量アップ', desc: 'ハート回復量を+10増加', color: '#2ecc71', icon: '💚' },
-    atk_up: { name: '攻撃力アップ', desc: '全武器ダメージ+10%', color: '#f1c40f', icon: '🟡' },
-    atk_speed_up: { name: '攻撃速度アップ', desc: 'クールダウン-8%', color: '#3498db', icon: '🔵' },
-    exp_bonus: { name: '経験値ボーナス', desc: '経験値獲得量+15%', color: '#9b59b6', icon: '🟣' },
-    pickup_range: { name: 'アイテム取得範囲アップ', desc: '取得範囲+20%', color: '#e67e22', icon: '🟠' },
-    move_speed_up: { name: '移動速度アップ', desc: '移動速度+8%', color: '#ecf0f1', icon: '⚪' }
-};
-
-export class WeaponManager {
-    constructor(player) {
+export class WeaponSystem {
+    constructor(player, bullets, enemies) {
         this.player = player;
-        this.weapons = {}; // { weaponId: { level, cooldown, ... } }
-        this.buffs = {}; // { buffId: level }
-        this.projectiles = [];
-        this.swordAngle = 0;
+        this.bullets = bullets;
+        this.enemies = enemies;
+        this.cooldowns = {};
         this.poisonClouds = [];
         this.guardians = [];
-        this.holyCircleTimer = 0;
-        this.thunderTimer = 0;
-        this.arrowTimer = 0;
-        this.crossTimer = 0;
+        this.swordAngle = 0;
     }
 
     init() {
-        this.weapons = {};
-        this.buffs = {};
-        this.projectiles = [];
-        this.swordAngle = 0;
+        this.cooldowns = {};
         this.poisonClouds = [];
         this.guardians = [];
-        this.holyCircleTimer = 0;
-        this.thunderTimer = 0;
-        this.arrowTimer = 0;
-        this.crossTimer = 0;
+        this.swordAngle = 0;
     }
 
-    addWeapon(weaponId) {
-        if (this.weapons[weaponId]) {
-            this.weapons[weaponId].level += 1;
-        } else {
-            this.weapons[weaponId] = { level: 1, cooldown: 0 };
+    update(dt, player, enemies) {
+        // クールダウン更新
+        for (const key in this.cooldowns) {
+            if (this.cooldowns[key] > 0) {
+                this.cooldowns[key] -= dt;
+            }
+        }
+
+        // 各武器の更新
+        const weapons = player.getWeapons();
+        for (const weapon of weapons) {
+            const config = WEAPON_CONFIG[weapon.id];
+            if (!config) continue;
+
+            switch (weapon.id) {
+                case 'magic_bowl':
+                    this.updateMagicBowl(dt, weapon, config, player, enemies);
+                    break;
+                case 'spinning_sword':
+                    this.updateSpinningSword(dt, weapon, config, player, enemies);
+                    break;
+                case 'holy_aura':
+                    this.updateHolyAura(dt, weapon, config, player, enemies);
+                    break;
+                case 'thunder':
+                    this.updateThunder(dt, weapon, config, player, enemies);
+                    break;
+                case 'poison_cloud':
+                    this.updatePoisonCloud(dt, weapon, config, player, enemies);
+                    break;
+                case 'shower_of_arrows':
+                    this.updateShowerOfArrows(dt, weapon, config, player, enemies);
+                    break;
+                case 'guardian':
+                    this.updateGuardian(dt, weapon, config, player, enemies);
+                    break;
+                case 'holy_cross':
+                    this.updateHolyCross(dt, weapon, config, player, enemies);
+                    break;
+            }
+        }
+
+        // 毒雲の更新
+        for (let i = this.poisonClouds.length - 1; i >= 0; i--) {
+            const cloud = this.poisonClouds[i];
+            cloud.timer -= dt;
+            cloud.damageTimer -= dt;
+            
+            if (cloud.damageTimer <= 0) {
+                cloud.damageTimer = 0.5;
+                // 範囲内の敵にダメージ
+                for (const enemy of enemies.getEnemies()) {
+                    const dx = enemy.x - cloud.x;
+                    const dy = enemy.y - cloud.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < cloud.radius) {
+                        // ダメージはbulletとして処理
+                        this.bullets.add({
+                            x: enemy.x,
+                            y: enemy.y,
+                            vx: 0, vy: 0,
+                            damage: cloud.damage,
+                            size: 0,
+                            active: true,
+                            isDamageOnly: true,
+                            targetId: enemy.id
+                        });
+                    }
+                }
+            }
+            
+            if (cloud.timer <= 0) {
+                this.poisonClouds.splice(i, 1);
+            }
+        }
+
+        // ガーディアンの更新
+        for (const guardian of this.guardians) {
+            // 最も近い敵へ追従
+            let nearestEnemy = null;
+            let nearestDist = Infinity;
+            for (const enemy of enemies.getEnemies()) {
+                const dx = enemy.x - guardian.x;
+                const dy = enemy.y - guardian.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < nearestDist) {
+                    nearestDist = dist;
+                    nearestEnemy = enemy;
+                }
+            }
+
+            if (nearestEnemy && nearestDist > 20) {
+                const dx = nearestEnemy.x - guardian.x;
+                const dy = nearestEnemy.y - guardian.y;
+                guardian.x += (dx / nearestDist) * guardian.speed * dt;
+                guardian.y += (dy / nearestDist) * guardian.speed * dt;
+            }
+
+            // 攻撃クールダウン
+            guardian.attackCooldown -= dt;
+            if (guardian.attackCooldown <= 0 && nearestEnemy) {
+                guardian.attackCooldown = 1.0;
+                // 近接攻撃
+                if (nearestDist < 50) {
+                    this.bullets.add({
+                        x: nearestEnemy.x,
+                        y: nearestEnemy.y,
+                        vx: 0, vy: 0,
+                        damage: guardian.damage,
+                        size: 0,
+                        active: true,
+                        isDamageOnly: true,
+                        targetId: nearestEnemy.id
+                    });
+                }
+            }
         }
     }
 
-    addBuff(buffId) {
-        if (this.buffs[buffId]) {
-            this.buffs[buffId] += 1;
-        } else {
-            this.buffs[buffId] = 1;
+    updateMagicBowl(dt, weapon, config, player, enemies) {
+        if (!this.cooldowns['magic_bowl']) this.cooldowns['magic_bowl'] = 0;
+        if (this.cooldowns['magic_bowl'] > 0) return;
+
+        const cooldown = config.cooldown / (1 + (weapon.level - 1) * 0.15);
+        this.cooldowns['magic_bowl'] = cooldown;
+
+        // 最も近い敵を探す
+        const enemyList = enemies.getEnemies();
+        if (enemyList.length === 0) return;
+
+        let nearest = null;
+        let nearestDist = Infinity;
+        for (const enemy of enemyList) {
+            const dx = enemy.x - player.x;
+            const dy = enemy.y - player.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < nearestDist) {
+                nearestDist = dist;
+                nearest = enemy;
+            }
         }
-        this.applyBuff(buffId);
-    }
 
-    applyBuff(buffId) {
-        const level = this.buffs[buffId];
-        switch (buffId) {
-            case 'max_hp_up':
-                this.player.maxHp += 15;
-                this.player.hp = Math.min(this.player.hp + 15, this.player.maxHp);
-                break;
-            case 'heal_up':
-                // ハートアイテムの回復量ボーナス（playerに保存）
-                this.player.healBonus = (this.player.healBonus || 0) + 10;
-                break;
-            case 'atk_up':
-                // ダメージ倍率（後で計算時に使う）
-                break;
-            case 'atk_speed_up':
-                // クールダウン短縮倍率
-                break;
-            case 'exp_bonus':
-                // 経験値ボーナス倍率
-                break;
-            case 'pickup_range':
-                // 取得範囲拡大（playerに保存）
-                this.player.pickupRangeBonus = (this.player.pickupRangeBonus || 0) + 20;
-                break;
-            case 'move_speed_up':
-                this.player.speedBonus = (this.player.speedBonus || 0) + 8;
-                break;
+        if (nearest) {
+            const dx = nearest.x - player.x;
+            const dy = nearest.y - player.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const speed = config.bulletSpeed * (1 + (weapon.level - 1) * 0.1);
+            const damage = config.damage * weapon.level;
+            const size = config.bulletSize + (weapon.level - 1) * 2;
+
+            // 弾数をレベルで増加
+            const bulletCount = Math.min(1 + Math.floor((weapon.level - 1) / 3), 5);
+            
+            for (let i = 0; i < bulletCount; i++) {
+                const spread = (i - (bulletCount - 1) / 2) * 0.2;
+                const angle = Math.atan2(dy, dx) + spread;
+                
+                this.bullets.add({
+                    x: player.x,
+                    y: player.y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    damage: damage,
+                    size: size,
+                    active: true,
+                    color: config.color,
+                    type: 'magic_bowl'
+                });
+            }
         }
     }
 
-    // バフのダメージ倍率
-    getAttackMultiplier() {
-        const level = this.buffs.atk_up || 0;
-        return 1 + level * 0.10;
+    updateSpinningSword(dt, weapon, config, player, enemies) {
+        const rotationSpeed = config.rotationSpeed * (1 + (weapon.level - 1) * 0.3);
+        this.swordAngle += rotationSpeed * dt;
+
+        const swordLength = config.swordLength + (weapon.level - 1) * 5;
+        const swordCount = Math.min(1 + Math.floor((weapon.level - 1) / 2), 4);
+
+        for (let s = 0; s < swordCount; s++) {
+            const angle = this.swordAngle + (s * Math.PI * 2) / swordCount;
+            const swordX = player.x + Math.cos(angle) * swordLength;
+            const swordY = player.y + Math.sin(angle) * swordLength;
+
+            // 範囲内の敵にダメージ
+            for (const enemy of enemies.getEnemies()) {
+                const dx = enemy.x - swordX;
+                const dy = enemy.y - swordY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < config.swordWidth + enemy.size) {
+                    // 1フレームに1回だけダメージ
+                    if (!enemy.swordHitTimer || enemy.swordHitTimer <= 0) {
+                        enemy.swordHitTimer = 0.3;
+                        this.bullets.add({
+                            x: enemy.x,
+                            y: enemy.y,
+                            vx: 0, vy: 0,
+                            damage: config.damage * weapon.level,
+                            size: 0,
+                            active: true,
+                            isDamageOnly: true,
+                            targetId: enemy.id
+                        });
+                    }
+                }
+            }
+            if (enemy.swordHitTimer) enemy.swordHitTimer -= dt;
+        }
     }
 
-    // バフの攻撃速度倍率（小さいほど速い）
-    getAttackSpeedMultiplier() {
-        const level = this.buffs.atk_speed_up || 0;
-        return Math.max(0.2, 1 - level * 0.08);
+    updateHolyAura(dt, weapon, config, player, enemies) {
+        if (!this.cooldowns['holy_aura']) this.cooldowns['holy_aura'] = 0;
+        if (this.cooldowns['holy_aura'] > 0) return;
+
+        const cooldown = config.cooldown / (1 + (weapon.level - 1) * 0.1);
+        this.cooldowns['holy_aura'] = cooldown;
+
+        const radius = config.radius + (weapon.level - 1) * 10;
+        const damage = config.damage * weapon.level;
+
+        for (const enemy of enemies.getEnemies()) {
+            const dx = enemy.x - player.x;
+            const dy = enemy.y - player.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < radius + enemy.size) {
+                this.bullets.add({
+                    x: enemy.x,
+                    y: enemy.y,
+                    vx: 0, vy: 0,
+                    damage: damage,
+                    size: 0,
+                    active: true,
+                    isDamageOnly: true,
+                    targetId: enemy.id
+                });
+            }
+        }
     }
 
-    // バフの経験値倍率
-    getExpMultiplier() {
-        const level = this.buffs.exp_bonus || 0;
-        return 1 + level * 0.15;
-    }
+    updateThunder(dt, weapon, config, player, enemies) {
+        if (!this.cooldowns['thunder']) this.cooldowns['thunder'] = 0;
+        if (this.cooldowns['thunder'] > 0) return;
 
-    // バフの取得範囲倍率
-    getPickupRangeMultiplier() {
-        const level = this.buffs.pickup_range || 0;
-        return 1 + level * 0.20;
-    }
+        const cooldown = config.cooldown / (1 + (weapon.level - 1) * 0.1);
+        this.cooldowns['thunder'] = cooldown;
 
-    // 画面内の敵のみをフィルタリング
-    getEnemiesOnScreen(enemies, camera) {
-        const margin = 50;
-        return enemies.filter(e => {
-            const sx = e.x - camera.getX();
-            const sy = e.y - camera.getY();
-            return sx >= -margin && sx <= camera.getWidth() + margin &&
-                   sy >= -margin && sy <= camera.getHeight() + margin;
+        const enemyList = enemies.getEnemies();
+        if (enemyList.length === 0) return;
+
+        // ランダムな敵を選択
+        const target = enemyList[Math.floor(Math.random() * enemyList.length)];
+        const damage = config.damage * weapon.level;
+
+        this.bullets.add({
+            x: target.x,
+            y: target.y,
+            vx: 0, vy: 0,
+            damage: damage,
+            size: config.hitRadius,
+            active: true,
+            isDamageOnly: true,
+            targetId: target.id,
+            color: config.color,
+            type: 'thunder'
         });
     }
 
-    update(dt, enemies, game) {
-        const px = this.player.getX();
-        const py = this.player.getY();
-        const atkMult = this.getAttackMultiplier();
-        const atkSpeedMult = this.getAttackSpeedMultiplier();
+    updatePoisonCloud(dt, weapon, config, player, enemies) {
+        if (!this.cooldowns['poison_cloud']) this.cooldowns['poison_cloud'] = 0;
+        if (this.cooldowns['poison_cloud'] > 0) return;
 
-        // 画面内の敵のみを取得
-        const onScreenEnemies = this.getEnemiesOnScreen(enemies, game.camera);
+        // 移動中は毒雲を残す
+        const dir = player.input ? player.input.getMoveDirection() : { dx: 0, dy: 0 };
+        if (dir.dx === 0 && dir.dy === 0 && !player.input?.isTouchActive()) return;
 
-        // マジックボウル
-        if (this.weapons.magic_bowl) {
-            const w = this.weapons.magic_bowl;
-            w.cooldown -= dt;
-            const fireRate = Math.max(0.3, (1.0 - w.level * 0.08) * atkSpeedMult);
-            const bulletCount = Math.min(w.level, 5);
-            if (w.cooldown <= 0 && onScreenEnemies.length > 0) {
-                w.cooldown = fireRate;
-                let closest = null, closestDist = Infinity;
-                for (const e of onScreenEnemies) {
-                    const d = Math.sqrt((e.x - px) ** 2 + (e.y - py) ** 2);
-                    if (d < closestDist) { closestDist = d; closest = e; }
-                }
-                if (closest) {
-                    const angle = Math.atan2(closest.y - py, closest.x - px);
-                    for (let i = 0; i < bulletCount; i++) {
-                        const spread = (i - (bulletCount - 1) / 2) * 0.15;
-                        this.projectiles.push({
-                            x: px, y: py,
-                            vx: Math.cos(angle + spread) * 300,
-                            vy: Math.sin(angle + spread) * 300,
-                            damage: (10 + w.level * 5) * atkMult,
-                            radius: 5,
-                            color: WEAPON_DEFS.magic_bowl.color,
-                            life: 2,
-                            type: 'magic_bowl'
-                        });
-                    }
-                }
-            }
+        this.cooldowns['poison_cloud'] = config.cooldown;
+        const damage = config.damage * weapon.level;
+        const radius = config.cloudRadius + (weapon.level - 1) * 5;
+
+        this.poisonClouds.push({
+            x: player.x,
+            y: player.y,
+            radius: radius,
+            damage: damage,
+            timer: config.cloudDuration,
+            damageTimer: 0,
+            color: config.color
+        });
+    }
+
+    updateShowerOfArrows(dt, weapon, config, player, enemies) {
+        if (!this.cooldowns['shower_of_arrows']) this.cooldowns['shower_of_arrows'] = 0;
+        if (this.cooldowns['shower_of_arrows'] > 0) return;
+
+        const cooldown = config.cooldown / (1 + (weapon.level - 1) * 0.1);
+        this.cooldowns['shower_of_arrows'] = cooldown;
+
+        const arrowCount = config.arrowCount + (weapon.level - 1) * 2;
+        const damage = config.damage * weapon.level;
+
+        for (let i = 0; i < arrowCount; i++) {
+            const offsetX = (Math.random() - 0.5) * 200;
+            const offsetY = (Math.random() - 0.5) * 200;
+            
+            this.bullets.add({
+                x: player.x + offsetX,
+                y: player.y + offsetY - 100,
+                vx: (Math.random() - 0.5) * 50,
+                vy: config.arrowSpeed,
+                damage: damage,
+                size: 4,
+                active: true,
+                color: config.color,
+                type: 'arrow'
+            });
         }
+    }
 
-        // 回転剣
-        if (this.weapons.spinning_sword) {
-            const w = this.weapons.spinning_sword;
-            this.swordAngle += dt * (3 + w.level * 0.5);
-            const swordCount = Math.min(1 + Math.floor(w.level / 2), 4);
-            const swordRange = 40 + w.level * 5;
-            const swordDamage = (15 + w.level * 5) * atkMult;
-
-            for (let s = 0; s < swordCount; s++) {
-                const a = this.swordAngle + (s * Math.PI * 2 / swordCount);
-                const sx = px + Math.cos(a) * swordRange;
-                const sy = py + Math.sin(a) * swordRange;
-
-                for (let i = onScreenEnemies.length - 1; i >= 0; i--) {
-                    const e = onScreenEnemies[i];
-                    const d = Math.sqrt((e.x - sx) ** 2 + (e.y - sy) ** 2);
-                    if (d < e.radius + 15) {
-                        e.hp -= swordDamage * dt;
-                        if (e.hp <= 0) {
-                            game.onEnemyKilled(e);
-                            const idx = enemies.indexOf(e);
-                            if (idx >= 0) enemies.splice(idx, 1);
-                        }
-                    }
-                }
-            }
+    updateGuardian(dt, weapon, config, player, enemies) {
+        // ガーディアンを召喚（レベルに応じて増やす）
+        const summonCount = Math.min(config.summonCount + Math.floor((weapon.level - 1) / 2), 4);
+        
+        while (this.guardians.length < summonCount) {
+            this.guardians.push({
+                x: player.x + (Math.random() - 0.5) * 60,
+                y: player.y + (Math.random() - 0.5) * 60,
+                speed: config.guardianSpeed,
+                damage: config.damage * weapon.level,
+                attackCooldown: 0,
+                color: config.color
+            });
         }
+    }
 
-        // 聖光陣
-        if (this.weapons.holy_circle) {
-            const w = this.weapons.holy_circle;
-            this.holyCircleTimer += dt;
-            const range = 80 + w.level * 15;
-            const damage = (5 + w.level * 3) * atkMult;
+    updateHolyCross(dt, weapon, config, player, enemies) {
+        if (!this.cooldowns['holy_cross']) this.cooldowns['holy_cross'] = 0;
+        if (this.cooldowns['holy_cross'] > 0) return;
 
-            if (this.holyCircleTimer >= 1.0 * atkSpeedMult) {
-                this.holyCircleTimer = 0;
-                for (let i = onScreenEnemies.length - 1; i >= 0; i--) {
-                    const e = onScreenEnemies[i];
-                    const d = Math.sqrt((e.x - px) ** 2 + (e.y - py) ** 2);
-                    if (d < range) {
-                        e.hp -= damage;
-                        if (e.hp <= 0) {
-                            game.onEnemyKilled(e);
-                            const idx = enemies.indexOf(e);
-                            if (idx >= 0) enemies.splice(idx, 1);
-                        }
-                    }
-                }
-            }
-        }
+        const cooldown = config.cooldown / (1 + (weapon.level - 1) * 0.1);
+        this.cooldowns['holy_cross'] = cooldown;
 
-        // 雷撃
-        if (this.weapons.thunder) {
-            const w = this.weapons.thunder;
-            this.thunderTimer -= dt;
-            const rate = Math.max(0.5, (2.0 - w.level * 0.15) * atkSpeedMult);
-            const damage = (20 + w.level * 10) * atkMult;
-            const strikeCount = Math.min(w.level, 5);
+        const damage = config.damage * weapon.level;
+        const beamLength = config.beamLength + (weapon.level - 1) * 20;
+        const beamWidth = config.beamWidth;
 
-            if (this.thunderTimer <= 0 && onScreenEnemies.length > 0) {
-                this.thunderTimer = rate;
-                for (let i = 0; i < strikeCount; i++) {
-                    const target = onScreenEnemies[Math.floor(Math.random() * onScreenEnemies.length)];
-                    if (target) {
-                        this.projectiles.push({
-                            x: target.x, y: target.y - 50,
-                            targetX: target.x, targetY: target.y,
-                            damage: damage,
-                            life: 0.3,
-                            type: 'thunder',
-                            color: WEAPON_DEFS.thunder.color
-                        });
-                        target.hp -= damage;
-                        if (target.hp <= 0) {
-                            game.onEnemyKilled(target);
-                            const idx = enemies.indexOf(target);
-                            if (idx >= 0) enemies.splice(idx, 1);
-                        }
-                    }
-                }
-            }
-        }
+        // 縦横のビーム
+        const beams = [
+            { x1: player.x - beamLength, y1: player.y, x2: player.x + beamLength, y2: player.y },
+            { x1: player.x, y1: player.y - beamLength, x2: player.x, y2: player.y + beamLength }
+        ];
 
-        // ポイズンクラウド
-        if (this.weapons.poison_cloud) {
-            const w = this.weapons.poison_cloud;
-            const dir = game.input.getMoveDirection();
-            if (Math.abs(dir.x) > 0.1 || Math.abs(dir.y) > 0.1) {
-                w.cooldown = (w.cooldown || 0) - dt;
-                if (w.cooldown <= 0) {
-                    w.cooldown = 0.5 * atkSpeedMult;
-                    this.poisonClouds.push({
-                        x: px, y: py,
-                        radius: 20 + w.level * 5,
-                        damage: (3 + w.level * 2) * atkMult,
-                        life: 3,
-                        maxLife: 3
+        for (const beam of beams) {
+            for (const enemy of enemies.getEnemies()) {
+                // 敵がビーム範囲内か判定
+                const minX = Math.min(beam.x1, beam.x2) - beamWidth / 2;
+                const maxX = Math.max(beam.x1, beam.x2) + beamWidth / 2;
+                const minY = Math.min(beam.y1, beam.y2) - beamWidth / 2;
+                const maxY = Math.max(beam.y1, beam.y2) + beamWidth / 2;
+
+                if (enemy.x > minX && enemy.x < maxX && enemy.y > minY && enemy.y < maxY) {
+                    this.bullets.add({
+                        x: enemy.x,
+                        y: enemy.y,
+                        vx: 0, vy: 0,
+                        damage: damage,
+                        size: 0,
+                        active: true,
+                        isDamageOnly: true,
+                        targetId: enemy.id
                     });
                 }
             }
-
-            for (let i = this.poisonClouds.length - 1; i >= 0; i--) {
-                const cloud = this.poisonClouds[i];
-                cloud.life -= dt;
-                if (cloud.life <= 0) {
-                    this.poisonClouds.splice(i, 1);
-                    continue;
-                }
-                for (let j = onScreenEnemies.length - 1; j >= 0; j--) {
-                    const e = onScreenEnemies[j];
-                    const d = Math.sqrt((e.x - cloud.x) ** 2 + (e.y - cloud.y) ** 2);
-                    if (d < cloud.radius + e.radius) {
-                        e.hp -= cloud.damage * dt;
-                        if (e.hp <= 0) {
-                            game.onEnemyKilled(e);
-                            const idx = enemies.indexOf(e);
-                            if (idx >= 0) enemies.splice(idx, 1);
-                        }
-                    }
-                }
-            }
         }
+    }
 
-        // シャワーオブアロウ
-        if (this.weapons.arrow_shower) {
-            const w = this.weapons.arrow_shower;
-            this.arrowTimer -= dt;
-            const rate = Math.max(0.2, (1.0 - w.level * 0.1) * atkSpeedMult);
-            const arrowCount = Math.min(w.level, 8);
+    addWeapon(weaponId) {
+        this.player.addWeapon(weaponId);
+    }
 
-            if (this.arrowTimer <= 0) {
-                this.arrowTimer = rate;
-                for (let i = 0; i < arrowCount; i++) {
-                    const ax = px + (Math.random() - 0.5) * 200;
-                    const ay = py + (Math.random() - 0.5) * 200;
-                    this.projectiles.push({
-                        x: ax, y: ay - 100,
-                        vx: (Math.random() - 0.5) * 30,
-                        vy: 250 + Math.random() * 100,
-                        damage: (8 + w.level * 3) * atkMult,
-                        radius: 3,
-                        life: 2,
-                        type: 'arrow',
-                        color: WEAPON_DEFS.arrow_shower.color
-                    });
-                }
-            }
+    getWeaponLevel(weaponId) {
+        const weapon = this.player.weapons.find(w => w.id === weaponId);
+        return weapon ? weapon.level : 0;
+    }
+
+    draw(ctx, cameraX, cameraY, player) {
+        // 毒雲
+        for (const cloud of this.poisonClouds) {
+            const screenX = cloud.x - cameraX;
+            const screenY = cloud.y - cameraY;
+            
+            if (screenX < -50 || screenX > 850 || screenY < -50 || screenY > 650) continue;
+
+            ctx.globalAlpha = 0.4 * (cloud.timer / 3.0);
+            ctx.fillStyle = cloud.color;
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, cloud.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
         }
 
         // ガーディアン
-        if (this.weapons.guardian) {
-            const w = this.weapons.guardian;
-            const guardianCount = Math.min(w.level, 3);
+        for (const guardian of this.guardians) {
+            const screenX = guardian.x - cameraX;
+            const screenY = guardian.y - cameraY;
+            
+            if (screenX < -50 || screenX > 850 || screenY < -50 || screenY > 650) continue;
 
-            while (this.guardians.length < guardianCount) {
-                const angle = Math.random() * Math.PI * 2;
-                this.guardians.push({
-                    x: px + Math.cos(angle) * 60,
-                    y: py + Math.sin(angle) * 60,
-                    damage: (10 + w.level * 5) * atkMult,
-                    radius: 12,
-                    cooldown: 0,
-                    angle: 0
-                });
-            }
-
-            for (const g of this.guardians) {
-                g.cooldown -= dt;
-                g.angle += dt * 2;
-                g.x = px + Math.cos(g.angle) * 60;
-                g.y = py + Math.sin(g.angle) * 60;
-
-                if (g.cooldown <= 0) {
-                    g.cooldown = 0.8 * atkSpeedMult;
-                    let closest = null, closestDist = Infinity;
-                    for (const e of onScreenEnemies) {
-                        const d = Math.sqrt((e.x - g.x) ** 2 + (e.y - g.y) ** 2);
-                        if (d < closestDist) { closestDist = d; closest = e; }
-                    }
-                    if (closest && closestDist < 150) {
-                        this.projectiles.push({
-                            x: g.x, y: g.y,
-                            vx: (closest.x - g.x) / closestDist * 200,
-                            vy: (closest.y - g.y) / closestDist * 200,
-                            damage: g.damage,
-                            radius: 6,
-                            life: 1.5,
-                            type: 'guardian_attack',
-                            color: WEAPON_DEFS.guardian.color
-                        });
-                    }
-                }
-            }
+            ctx.fillStyle = guardian.color;
+            ctx.fillRect(screenX - 12, screenY - 12, 24, 24);
+            
+            // 目
+            ctx.fillStyle = '#FF5722';
+            ctx.fillRect(screenX - 6, screenY - 4, 4, 4);
+            ctx.fillRect(screenX + 2, screenY - 4, 4, 4);
         }
 
-        // ホーリークロス
-        if (this.weapons.holy_cross) {
-            const w = this.weapons.holy_cross;
-            this.crossTimer -= dt;
-            const rate = Math.max(0.8, (2.5 - w.level * 0.15) * atkSpeedMult);
-            const damage = (12 + w.level * 5) * atkMult;
-
-            if (this.crossTimer <= 0 && onScreenEnemies.length > 0) {
-                this.crossTimer = rate;
-                const crossSize = 100 + w.level * 20;
-                this.projectiles.push({
-                    x: px, y: py,
-                    width: 6, height: crossSize * 2,
-                    damage: damage,
-                    life: 0.4,
-                    type: 'holy_cross',
-                    color: WEAPON_DEFS.holy_cross.color
-                });
-                this.projectiles.push({
-                    x: px, y: py,
-                    width: crossSize * 2, height: 6,
-                    damage: damage,
-                    life: 0.4,
-                    type: 'holy_cross',
-                    color: WEAPON_DEFS.holy_cross.color
-                });
-
-                for (let i = onScreenEnemies.length - 1; i >= 0; i--) {
-                    const e = onScreenEnemies[i];
-                    if (Math.abs(e.x - px) < crossSize && Math.abs(e.y - py) < crossSize) {
-                        const onVertical = Math.abs(e.x - px) < 10;
-                        const onHorizontal = Math.abs(e.y - py) < 10;
-                        if (onVertical || onHorizontal) {
-                            e.hp -= damage;
-                            if (e.hp <= 0) {
-                                game.onEnemyKilled(e);
-                                const idx = enemies.indexOf(e);
-                                if (idx >= 0) enemies.splice(idx, 1);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // プロジェクタイル更新
-        for (let i = this.projectiles.length - 1; i >= 0; i--) {
-            const p = this.projectiles[i];
-            p.life -= dt;
-
-            if (p.vx !== undefined) {
-                p.x += p.vx * dt;
-                p.y += p.vy * dt;
-            }
-
-            if (p.life <= 0) {
-                this.projectiles.splice(i, 1);
-                continue;
-            }
-
-            if (p.type !== 'thunder' && p.type !== 'holy_cross') {
-                for (let j = enemies.length - 1; j >= 0; j--) {
-                    const e = enemies[j];
-                    const d = Math.sqrt((e.x - p.x) ** 2 + (e.y - p.y) ** 2);
-                    if (d < e.radius + (p.radius || 5)) {
-                        e.hp -= p.damage;
-                        this.projectiles.splice(i, 1);
-                        if (e.hp <= 0) {
-                            game.onEnemyKilled(e);
-                            enemies.splice(j, 1);
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    draw(ctx, camera) {
-        for (const p of this.projectiles) {
-            ctx.fillStyle = p.color || '#fff';
-
-            if (p.type === 'thunder') {
-                ctx.strokeStyle = '#f1c40f';
-                ctx.lineWidth = 4;
-                ctx.beginPath();
-                ctx.moveTo(p.x, p.y);
-                ctx.lineTo(p.targetX, p.targetY);
-                ctx.stroke();
-                ctx.lineWidth = 1;
-            } else if (p.type === 'holy_cross') {
-                ctx.globalAlpha = 0.7;
-                ctx.fillRect(p.x - p.width / 2, p.y - p.height / 2, p.width, p.height);
-                ctx.globalAlpha = 1;
-            } else {
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.radius || 4, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
-        if (this.weapons.spinning_sword) {
-            const w = this.weapons.spinning_sword;
-            const swordCount = Math.min(1 + Math.floor(w.level / 2), 4);
-            const swordRange = 40 + w.level * 5;
-            const px = this.player.getX();
-            const py = this.player.getY();
+        // 回転剣の視覚表現
+        const weapons = player.getWeapons();
+        const spinningSword = weapons.find(w => w.id === 'spinning_sword');
+        if (spinningSword) {
+            const config = WEAPON_CONFIG.spinning_sword;
+            const swordLength = config.swordLength + (spinningSword.level - 1) * 5;
+            const swordCount = Math.min(1 + Math.floor((spinningSword.level - 1) / 2), 4);
 
             for (let s = 0; s < swordCount; s++) {
-                const a = this.swordAngle + (s * Math.PI * 2 / swordCount);
-                const sx = px + Math.cos(a) * swordRange;
-                const sy = py + Math.sin(a) * swordRange;
+                const angle = this.swordAngle + (s * Math.PI * 2) / swordCount;
+                const swordX = player.x + Math.cos(angle) * swordLength;
+                const swordY = player.y + Math.sin(angle) * swordLength;
+                const screenX = swordX - cameraX;
+                const screenY = swordY - cameraY;
 
-                ctx.fillStyle = '#e74c3c';
-                ctx.beginPath();
-                ctx.arc(sx, sy, 8, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = '#c0392b';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                ctx.lineWidth = 1;
+                ctx.fillStyle = config.color;
+                ctx.save();
+                ctx.translate(screenX, screenY);
+                ctx.rotate(angle + Math.PI / 2);
+                ctx.fillRect(-config.swordWidth / 2, -15, config.swordWidth, 30);
+                ctx.restore();
             }
         }
-
-        if (this.weapons.holy_circle) {
-            const w = this.weapons.holy_circle;
-            const range = 80 + w.level * 15;
-            const px = this.player.getX();
-            const py = this.player.getY();
-
-            ctx.strokeStyle = 'rgba(243, 156, 18, 0.4)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(px, py, range, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.lineWidth = 1;
-        }
-
-        for (const cloud of this.poisonClouds) {
-            const alpha = cloud.life / cloud.maxLife;
-            ctx.fillStyle = `rgba(46, 204, 113, ${alpha * 0.4})`;
-            ctx.beginPath();
-            ctx.arc(cloud.x, cloud.y, cloud.radius, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        for (const g of this.guardians) {
-            ctx.fillStyle = '#95a5a6';
-            ctx.beginPath();
-            ctx.arc(g.x, g.y, g.radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = '#7f8c8d';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.lineWidth = 1;
-        }
-    }
-
-    getWeapons() {
-        return Object.keys(this.weapons).map(id => ({
-            id,
-            type: 'weapon',
-            level: this.weapons[id].level,
-            ...WEAPON_DEFS[id]
-        }));
-    }
-
-    getBuffs() {
-        return Object.keys(this.buffs).map(id => ({
-            id,
-            type: 'buff',
-            level: this.buffs[id],
-            ...BUFF_DEFS[id]
-        }));
     }
 }
