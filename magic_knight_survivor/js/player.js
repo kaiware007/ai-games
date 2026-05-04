@@ -2,150 +2,149 @@ export class Player {
     constructor(x, y) {
         this.x = x;
         this.y = y;
-        this.width = 32;
-        this.height = 32;
-        this.speed = 200;
-        this.maxHP = 100;
+        this.speed = 150;
+        this.speedBonus = 0; // バフからの移動速度ボーナス%
+        this.radius = 12;
         this.hp = 100;
-        this.xp = 0;
-        this.xpToNextLevel = 10;
+        this.maxHp = 100;
+        this.experience = 0;
+        this.experienceToNext = 10;
         this.level = 1;
-        this.weapons = []; // { id, level }
-        this.buffs = []; // { id, level }
-        this.invincible = false;
-        this.invincibleTimer = 0;
+        this.invulnerable = 0;
         this.alive = true;
+        this.healBonus = 0; // バフからの回復量ボーナス
+        this.pickupRangeBonus = 0; // バフからの取得範囲ボーナス%
     }
 
     init() {
-        this.hp = this.maxHP;
-        this.xp = 0;
+        this.hp = this.maxHp;
+        this.experience = 0;
         this.level = 1;
-        this.weapons = [];
-        this.buffs = [];
         this.alive = true;
+        this.invulnerable = 0;
+        this.speedBonus = 0;
+        this.healBonus = 0;
+        this.pickupRangeBonus = 0;
     }
 
-    update(dt, input, enemies) {
+    getSpeed() {
+        return this.speed * (1 + this.speedBonus / 100);
+    }
+
+    getPickupRange() {
+        return 80 * (1 + this.pickupRangeBonus / 100);
+    }
+
+    update(dt, input, game) {
         if (!this.alive) return;
 
-        // インビジブリブタイマー
-        if (this.invincible) {
-            this.invincibleTimer -= dt;
-            if (this.invincibleTimer <= 0) {
-                this.invincible = false;
+        const dir = input.getMoveDirection();
+        const speed = this.getSpeed();
+        this.x += dir.x * speed * dt;
+        this.y += dir.y * speed * dt;
+
+        if (this.invulnerable > 0) {
+            this.invulnerable -= dt;
+        }
+
+        const pickupRange = this.getPickupRange();
+
+        // 経験値クリスタルの収集
+        const crystals = game.expCrystals;
+        for (let i = crystals.length - 1; i >= 0; i--) {
+            const c = crystals[i];
+            const dx = c.getX() - this.x;
+            const dy = c.getY() - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < this.radius + 8) {
+                this.addExperience(c.getValue());
+                crystals.splice(i, 1);
+                game.onItemCollected();
+            } else if (dist < pickupRange) {
+                const pullSpeed = 200;
+                const pullDx = -dx / dist * pullSpeed * dt;
+                const pullDy = -dy / dist * pullSpeed * dt;
+                c.x += pullDx;
+                c.y += pullDy;
             }
         }
 
-        // 移動
-        let dx = 0, dy = 0;
-
-        if (input.isTouchActive()) {
-            // タッチ入力: タッチ位置へ向かう
-            const worldTouchX = input.getTouchTarget().x + enemies.cameraX;
-            const worldTouchY = input.getTouchTarget().y + enemies.cameraY;
-            const diffX = worldTouchX - this.x;
-            const diffY = worldTouchY - this.y;
-            const dist = Math.sqrt(diffX * diffX + diffY * diffY);
-            if (dist > 5) {
-                dx = diffX / dist;
-                dy = diffY / dist;
+        // 体力回復アイテムの収集
+        const healItems = game.healItems;
+        for (let i = healItems.length - 1; i >= 0; i--) {
+            const item = healItems[i];
+            const dx = item.getX() - this.x;
+            const dy = item.getY() - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < this.radius + item.radius) {
+                const healAmount = item.getHealAmount() + this.healBonus;
+                this.hp = Math.min(this.hp + healAmount, this.maxHp);
+                healItems.splice(i, 1);
+                game.onItemCollected();
+            } else if (dist < pickupRange) {
+                const pullSpeed = 200;
+                const pullDx = -dx / dist * pullSpeed * dt;
+                const pullDy = -dy / dist * pullSpeed * dt;
+                item.x += pullDx;
+                item.y += pullDy;
             }
-        } else {
-            // キーボード入力
-            const dir = input.getMoveDirection();
-            dx = dir.dx;
-            dy = dir.dy;
         }
-
-        // 正規化
-        const len = Math.sqrt(dx * dx + dy * dy);
-        if (len > 0) {
-            dx /= len;
-            dy /= len;
-        }
-
-        this.x += dx * this.speed * dt;
-        this.y += dy * this.speed * dt;
     }
 
+    draw(ctx, camera) {
+        if (!this.alive) return;
+
+        if (this.invulnerable > 0 && Math.floor(this.invulnerable * 10) % 2 === 0) {
+            ctx.globalAlpha = 0.5;
+        }
+
+        ctx.fillStyle = '#4a90d9';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#8b7355';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y - 4, this.radius * 0.7, Math.PI, 0);
+        ctx.fill();
+
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(this.x - 5, this.y - 3, 4, 3);
+        ctx.fillRect(this.x + 1, this.y - 3, 4, 3);
+
+        ctx.globalAlpha = 1;
+    }
+
+    getBounds() {
+        return { x: this.x - this.radius, y: this.y - this.radius, width: this.radius * 2, height: this.radius * 2 };
+    }
+
+    isAlive() { return this.alive; }
+
     takeDamage(amount) {
-        if (this.invincible || !this.alive) return;
+        if (this.invulnerable > 0 || !this.alive) return;
         this.hp -= amount;
-        this.invincible = true;
-        this.invincibleTimer = 0.5;
+        this.invulnerable = 0.5;
         if (this.hp <= 0) {
             this.hp = 0;
             this.alive = false;
         }
     }
 
-    gainXP(amount) {
-        this.xp += amount;
-        this.checkLevelUp();
-    }
-
-    checkLevelUp() {
-        while (this.xp >= this.xpToNextLevel) {
-            this.xp -= this.xpToNextLevel;
-            this.level++;
-            this.xpToNextLevel = Math.floor(this.xpToNextLevel * 1.5) + 5;
-            return true; // レベルUP発生
-        }
-        return false;
-    }
-
-    addWeapon(weaponId) {
-        const existing = this.weapons.find(w => w.id === weaponId);
-        if (existing) {
-            existing.level++;
-        } else if (this.weapons.length < 5) {
-            this.weapons.push({ id: weaponId, level: 1 });
+    addExperience(amount) {
+        this.experience += amount;
+        while (this.experience >= this.experienceToNext) {
+            this.experience -= this.experienceToNext;
+            this.levelUp();
         }
     }
 
-    getWeapons() {
-        return this.weapons.map(w => ({ ...w, type: 'weapon' }));
+    levelUp() {
+        this.level += 1;
+        this.experienceToNext = Math.floor(10 * Math.pow(1.2, this.level - 1));
     }
 
-    getBuffs() {
-        return this.buffs.map(b => ({ ...b, type: 'buff' }));
-    }
-
-    draw(ctx, cameraX, cameraY) {
-        if (!this.alive) return;
-
-        const screenX = this.x - cameraX;
-        const screenY = this.y - cameraY;
-
-        // インビジブリブ中は点滅
-        if (this.invincible && Math.floor(Date.now() / 100) % 2 === 0) {
-            ctx.globalAlpha = 0.5;
-        }
-
-        // 体（骑士風）
-        ctx.fillStyle = '#4A90D9';
-        ctx.fillRect(screenX - 12, screenY - 16, 24, 32);
-
-        // ヘルメット
-        ctx.fillStyle = '#8B7355';
-        ctx.fillRect(screenX - 10, screenY - 20, 20, 8);
-
-        // 目
-        ctx.fillStyle = '#FFF';
-        ctx.fillRect(screenX - 6, screenY - 14, 4, 4);
-        ctx.fillRect(screenX + 2, screenY - 14, 4, 4);
-
-        // 剣（右手）
-        ctx.fillStyle = '#C0C0C0';
-        ctx.fillRect(screenX + 12, screenY - 8, 4, 20);
-        ctx.fillStyle = '#FFD700';
-        ctx.fillRect(screenX + 10, screenY - 2, 8, 4);
-
-        ctx.globalAlpha = 1;
-    }
-
-    isDead() {
-        return !this.alive;
-    }
+    getLevel() { return this.level; }
+    getX() { return this.x; }
+    getY() { return this.y; }
 }
