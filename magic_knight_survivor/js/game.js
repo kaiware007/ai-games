@@ -37,6 +37,8 @@ export class Game {
         this.score = 0;
         this.time = 0;
         this.levelUpChoices = [];
+        this.bossWarningTimer = 0;
+        this.bossWarningText = '';
 
         canvas.addEventListener('click', (e) => {
             const rect = canvas.getBoundingClientRect();
@@ -67,11 +69,12 @@ export class Game {
         this.healItems = [];
         this.score = 0;
         this.time = 0;
+        this.bossWarningTimer = 0;
+        this.bossWarningText = '';
         this.hud.setMenuActive(false);
     }
 
     start() {
-        // ゲーム開始時にオーディオを初期化（効果音が即座に使えるように）
         this.audio.init();
         this.init();
         this.state = 'playing';
@@ -104,19 +107,57 @@ export class Game {
             return;
         }
 
+        // ボス警告タイマー更新
+        if (this.bossWarningTimer > 0) {
+            this.bossWarningTimer -= dt;
+        }
+
         this.player.update(dt, this.input, this);
         this.camera.update(this.player.getX(), this.player.getY());
         this.enemyManager.update(dt, this.player, this);
-        this.weaponManager.update(dt, this.enemyManager.getEnemies(), this);
+        this.weaponManager.update(dt, this.enemyManager.getAll(), this);
 
-        for (const c of this.expCrystals) {
+        // 経験値クリスタルの更新と収集判定
+        for (let i = this.expCrystals.length - 1; i >= 0; i--) {
+            const c = this.expCrystals[i];
             c.update(dt);
+
+            // プレイヤーとの距離で収集
+            const dx = this.player.getX() - c.x;
+            const dy = this.player.getY() - c.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const pickupRange = this.weaponManager.getPickupRange() || 40;
+
+            if (dist < c.radius + this.player.radius + pickupRange) {
+                this.player.addExperience(c.exp);
+                this.expCrystals.splice(i, 1);
+                this.onItemCollected();
+            }
         }
 
+        // 回復アイテムの更新と収集判定
         for (let i = this.healItems.length - 1; i >= 0; i--) {
             this.healItems[i].update(dt);
             if (!this.healItems[i].isAlive()) {
                 this.healItems.splice(i, 1);
+                continue;
+            }
+
+            const item = this.healItems[i];
+            const dx = this.player.getX() - item.getX();
+            const dy = this.player.getY() - item.getY();
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const pickupRange = this.weaponManager.getPickupRange() || 40;
+
+            if (dist < item.radius + this.player.radius + pickupRange) {
+                if (item.isFullHeal) {
+                    // 体力全開アイテム：HPを最大まで回復
+                    this.player.hp = this.player.maxHp;
+                } else {
+                    this.player.heal(item.getHealAmount());
+                }
+                this.healItems.splice(i, 1);
+                this.onItemCollected();
             }
         }
 
@@ -162,6 +203,17 @@ export class Game {
         ctx.restore();
 
         this.hud.draw(ctx, this.player, this);
+
+        // ボス警告表示
+        if (this.bossWarningTimer > 0) {
+            const alpha = Math.min(1, this.bossWarningTimer / 2);
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = '#e74c3c';
+            ctx.font = 'bold 36px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(this.bossWarningText, w / 2, h / 2 - 100);
+            ctx.globalAlpha = 1;
+        }
 
         if (this.state === 'levelup') {
             this.hud.drawLevelUpMenu(ctx, this.levelUpChoices);
@@ -377,6 +429,30 @@ export class Game {
         this.audio.playHit();
 
         const expMult = this.weaponManager.getExpMultiplier();
+
+        // ボスなら大量のクリスタルと体力全開アイテムをドロップ
+        if (enemy.isBoss) {
+            // 20個の経験値クリスタルをドロップ
+            for (let i = 0; i < 20; i++) {
+                const angle = (Math.PI * 2 / 20) * i + Math.random() * 0.5;
+                const dist = 30 + Math.random() * 50;
+                const cx = enemy.x + Math.cos(angle) * dist;
+                const cy = enemy.y + Math.sin(angle) * dist;
+                const expValue = Math.max(1, Math.floor((Math.random() * 5 + 3) * expMult));
+                const crystal = new ExpCrystal(cx, cy, expValue);
+                this.expCrystals.push(crystal);
+            }
+
+            // 体力全開アイテムをドロップ
+            const fullHealItem = new HealItem(enemy.x, enemy.y, 9999);
+            fullHealItem.isFullHeal = true;
+            this.healItems.push(fullHealItem);
+
+            this.audio.playBossDefeated();
+            return;
+        }
+
+        // 通常敵のドロップ
         const expValue = Math.max(1, Math.floor((Math.random() * 3 + 1) * expMult));
         const crystal = new ExpCrystal(enemy.x, enemy.y, expValue);
         this.expCrystals.push(crystal);
@@ -386,6 +462,13 @@ export class Game {
             const healItem = new HealItem(enemy.x, enemy.y, healAmount);
             this.healItems.push(healItem);
         }
+    }
+
+    // ボス出現時のコールバック
+    onBossSpawned() {
+        this.bossWarningTimer = 4;
+        this.bossWarningText = '⚠ 闇の巨人が現れた！ ⚠';
+        this.audio.playBossSpawned();
     }
 
     onItemCollected() {
