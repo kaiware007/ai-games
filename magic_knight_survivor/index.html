@@ -61,12 +61,14 @@
         let lastTime = performance.now();
 
         function gameLoop(currentTime) {
-            const dt = Math.min((currentTime - lastTime) / 1000, 0.05);
-            lastTime = currentTime;
-
-            game.update(dt);
-            game.draw();
-
+            try {
+                const dt = Math.min((currentTime - lastTime) / 1000, 0.05);
+                lastTime = currentTime;
+                game.update(dt);
+                game.draw();
+            } catch (e) {
+                console.error('[GameLoop] Error:', e);
+            }
             requestAnimationFrame(gameLoop);
         }
 

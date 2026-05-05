@@ -131,6 +131,10 @@ export class Player {
         }
     }
 
+    heal(amount) {
+        this.hp = Math.min(this.hp + amount + this.healBonus, this.maxHp);
+    }
+
     addExperience(amount) {
         this.experience += amount;
         while (this.experience >= this.experienceToNext) {

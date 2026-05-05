@@ -1,12 +1,13 @@
-import { InputManager } from './input.js?v=1777827247';
-import { Player } from './player.js?v=1777827247';
-import { EnemyManager } from './enemy.js?v=1777827247';
-import { WeaponManager, WEAPON_DEFS, BUFF_DEFS } from './weapons.js?v=1777827247';
-import { ExpCrystal } from './exp_crystal.js?v=1777827247';
-import { HealItem } from './heal_item.js?v=1777827247';
-import { HUD } from './hud.js?v=1777827247';
-import { Camera } from './camera.js?v=1777827247';
-import { AudioManager } from './audio.js?v=1777827247';
+import { InputManager } from './input.js';
+import { Player } from './player.js';
+import { EnemyManager } from './enemy.js';
+import { WeaponManager, WEAPON_DEFS, BUFF_DEFS } from './weapons.js';
+import { cleanupDeadEnemies } from './weapons.js';
+import { ExpCrystal } from './exp_crystal.js';
+import { HealItem } from './heal_item.js';
+import { HUD } from './hud.js';
+import { Camera } from './camera.js';
+import { AudioManager } from './audio.js';
 
 // ゲームクリア時間（秒）
 const GAME_CLEAR_TIME = 600; // 10分
@@ -117,6 +118,10 @@ export class Game {
         this.enemyManager.update(dt, this.player, this);
         this.weaponManager.update(dt, this.enemyManager.getAll(), this);
 
+        // 死亡フラグ立った敵を削除（フリーズ防止）
+        cleanupDeadEnemies(this.enemyManager.getEnemies());
+        cleanupDeadEnemies(this.enemyManager.getBosses());
+
         // 経験値クリスタルの更新と収集判定
         for (let i = this.expCrystals.length - 1; i >= 0; i--) {
             const c = this.expCrystals[i];
@@ -129,7 +134,7 @@ export class Game {
             const pickupRange = this.weaponManager.getPickupRange() || 40;
 
             if (dist < c.radius + this.player.radius + pickupRange) {
-                this.player.addExperience(c.exp);
+                this.player.addExperience(c.getValue());
                 this.expCrystals.splice(i, 1);
                 this.onItemCollected();
             }
