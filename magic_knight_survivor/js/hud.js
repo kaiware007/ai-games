@@ -5,6 +5,8 @@ const GAME_CLEAR_TIME = 600;
 const WEAPON_COLOR = '#FF9800'; // オレンジ
 const BUFF_COLOR = '#8BC34A';   // 黄緑
 
+import { WEAPON_DEFS, BUFF_DEFS } from './weapons.js?v=1777968291';
+
 export class HUD {
     constructor(canvas) {
         this.canvas = canvas;
@@ -67,7 +69,10 @@ export class HUD {
         // 武器情報（右下）— 武器はオレンジ、バフは黄緑
         const weapons = game.weaponManager.getWeapons();
         const buffs = game.weaponManager.getBuffs();
-        const allItems = [...weapons, ...buffs];
+        const allItems = [
+            ...weapons.map(w => ({ type: 'weapon', id: w.id, level: w.level, name: WEAPON_DEFS[w.id]?.name || w.id })),
+            ...buffs.map(b => ({ type: 'buff', id: b.id, level: b.level, name: BUFF_DEFS[b.id]?.name || b.id }))
+        ];
         if (allItems.length > 0) {
             ctx.textAlign = 'right';
             ctx.font = '11px monospace';
