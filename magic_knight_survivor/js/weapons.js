@@ -391,8 +391,6 @@ export class WeaponManager {
     }
 
     draw(ctx, camera) {
-        const cx = camera.getX();
-        const cy = camera.getY();
         const px = this.player.getX();
         const py = this.player.getY();
 
@@ -404,7 +402,7 @@ export class WeaponManager {
             ctx.globalAlpha = 0.18;
             ctx.fillStyle = WEAPON_DEFS.holy_circle.color;
             ctx.beginPath();
-            ctx.arc(px - cx, py - cy, stats.radius * rm, 0, Math.PI * 2);
+            ctx.arc(px, py, stats.radius * rm, 0, Math.PI * 2);
             ctx.fill();
             ctx.globalAlpha = 0.5;
             ctx.strokeStyle = WEAPON_DEFS.holy_circle.color;
@@ -419,7 +417,7 @@ export class WeaponManager {
             ctx.globalAlpha = 0.4 * (cloud.life / cloud.duration);
             ctx.fillStyle = '#7CFC00';
             ctx.beginPath();
-            ctx.arc(cloud.x - cx, cloud.y - cy, cloud.radius, 0, Math.PI * 2);
+            ctx.arc(cloud.x, cloud.y, cloud.radius, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
         }
@@ -431,8 +429,8 @@ export class WeaponManager {
             const swordRange = stats.rotationRadius * rm;
             for (let s = 0; s < stats.swordCount; s++) {
                 const a = this.swordAngle + (s * Math.PI * 2 / stats.swordCount);
-                const sx = px + Math.cos(a) * swordRange - cx;
-                const sy = py + Math.sin(a) * swordRange - cy;
+                const sx = px + Math.cos(a) * swordRange;
+                const sy = py + Math.sin(a) * swordRange;
                 ctx.save();
                 ctx.translate(sx, sy);
                 ctx.rotate(a + Math.PI / 4);
@@ -449,7 +447,7 @@ export class WeaponManager {
             ctx.strokeStyle = '#C0C0C0';
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(g.x - cx, g.y - cy, 14, 0, Math.PI * 2);
+            ctx.arc(g.x, g.y, 14, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
             ctx.restore();
@@ -463,19 +461,19 @@ export class WeaponManager {
                 ctx.strokeStyle = '#FFD700';
                 ctx.lineWidth = 3;
                 ctx.beginPath();
-                ctx.moveTo(p.x - cx, p.y - cy - 120);
-                ctx.lineTo(p.x - cx, p.y - cy);
+                ctx.moveTo(p.x, p.y - 120);
+                ctx.lineTo(p.x, p.y);
                 ctx.stroke();
                 ctx.fillStyle = '#FFF8DC';
                 ctx.beginPath();
-                ctx.arc(p.x - cx, p.y - cy, p.radius, 0, Math.PI * 2);
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
                 ctx.fill();
             } else {
                 ctx.fillStyle = p.color || '#fff';
                 ctx.shadowColor = p.color || '#fff';
                 ctx.shadowBlur = 6;
                 ctx.beginPath();
-                ctx.arc(p.x - cx, p.y - cy, p.radius, 0, Math.PI * 2);
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
                 ctx.fill();
             }
             ctx.restore();
