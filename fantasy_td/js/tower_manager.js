@@ -1,4 +1,4 @@
-import { Tower } from './tower.js';
+import { Tower } from './tower.js?v=1781249104';
 
 export class TowerManager {
     constructor() {

@@ -1,9 +1,9 @@
-import { InputManager } from './input.js';
-import { PathManager } from './path.js';
-import { EnemyManager } from './enemy_manager.js';
-import { TowerManager } from './tower_manager.js';
-import { WaveManager } from './wave.js';
-import { HUD } from './hud.js';
+import { InputManager } from './input.js?v=1781249104';
+import { PathManager } from './path.js?v=1781249104';
+import { EnemyManager } from './enemy_manager.js?v=1781249104';
+import { TowerManager } from './tower_manager.js?v=1781249104';
+import { WaveManager } from './wave.js?v=1781249104';
+import { HUD } from './hud.js?v=1781249104';
 
 export class Game {
     constructor(canvas) {
@@ -299,4 +299,4 @@ export class Game {
 }
 
 // Towerはgame.jsからも参照するのでimport
-import { Tower } from './tower.js';
+import { Tower } from './tower.js?v=1781249104';
