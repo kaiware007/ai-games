@@ -1,0 +1,37 @@
+export default [
+  {
+    files: ["js/**/*.js"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: {
+        console:"readonly", window:"readonly", document:"readonly",
+        navigator:"readonly", requestAnimationFrame:"readonly",
+        cancelAnimationFrame:"readonly", setTimeout:"readonly",
+        clearTimeout:"readonly", setInterval:"readonly",
+        clearInterval:"readonly", performance:"readonly",
+        Math:"readonly", Date:"readonly", JSON:"readonly",
+        Promise:"readonly", localStorage:"readonly",
+        sessionStorage:"readonly", Event:"readonly",
+        KeyboardEvent:"readonly", MouseEvent:"readonly",
+        TouchEvent:"readonly", PointerEvent:"readonly",
+        Image:"readonly", Audio:"readonly",
+        HTMLCanvasElement:"readonly", HTMLImageElement:"readonly",
+        CanvasRenderingContext2D:"readonly",
+        AudioContext:"readonly", GainNode:"readonly",
+        Howl:"readonly", Howler:"readonly",
+        THREE:"readonly", PIXI:"readonly",
+        NaN:"readonly", Infinity:"readonly", undefined:"readonly",
+        parseInt:"readonly", parseFloat:"readonly", isNaN:"readonly",
+        isFinite:"readonly", Array:"readonly", Object:"readonly",
+        String:"readonly", Number:"readonly", Boolean:"readonly",
+        Error:"readonly", Map:"readonly", Set:"readonly",
+        WeakMap:"readonly", WeakSet:"readonly", Symbol:"readonly",
+      },
+    },
+    rules: {
+      "no-undef": "error",
+      "no-unused-vars": ["warn", {"args":"none","varsIgnorePattern":"^_"}],
+    },
+  },
+];

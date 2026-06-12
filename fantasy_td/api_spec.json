@@ -1,0 +1,282 @@
+{
+  "version": "2",
+  "components": {
+    "input": {
+      "exports": {
+        "InputManager": {
+          "constructor": [
+            "canvas"
+          ],
+          "methods": [
+            "getPointerPos()",
+            "isMouseDown()",
+            "handleClick(x, y)",
+            "update()"
+          ],
+          "props": [
+            "x",
+            "y",
+            "down"
+          ]
+        }
+      },
+      "file": "js/input.js",
+      "imports": {}
+    },
+    "path": {
+      "exports": {
+        "PathManager": {
+          "constructor": [
+            "waypoints"
+          ],
+          "methods": [
+            "getPointAtDistance(distance)",
+            "getTotalLength()",
+            "draw(ctx)"
+          ],
+          "props": [
+            "waypoints",
+            "segments",
+            "totalLength"
+          ]
+        }
+      },
+      "file": "js/path.js",
+      "imports": {}
+    },
+    "enemy": {
+      "exports": {
+        "Enemy": {
+          "constructor": [
+            "path",
+            "hp",
+            "speed",
+            "reward",
+            "type"
+          ],
+          "methods": [
+            "update(dt)",
+            "draw(ctx)",
+            "takeDamage(amount)",
+            "applySlow(factor, duration)",
+            "applyPoison(damage, duration)",
+            "isDead()",
+            "isReachedEnd()"
+          ],
+          "props": [
+            "hp",
+            "maxHp",
+            "speed",
+            "baseSpeed",
+            "x",
+            "y",
+            "distance",
+            "type",
+            "reward",
+            "slowFactor",
+            "slowTimer",
+            "poisonDamage",
+            "poisonTimer",
+            "poisonTickTimer"
+          ]
+        }
+      },
+      "file": "js/enemy.js",
+      "imports": {
+        "./path.js": [
+          "PathManager"
+        ]
+      }
+    },
+    "enemy_manager": {
+      "exports": {
+        "EnemyManager": {
+          "constructor": [
+            "path"
+          ],
+          "methods": [
+            "spawnEnemy(config)",
+            "update(dt)",
+            "draw(ctx)",
+            "getEnemiesInRange(x, y, radius)",
+            "getClosestEnemy(x, y, maxRange)",
+            "clear()",
+            "getAliveCount()"
+          ],
+          "props": [
+            "enemies",
+            "path"
+          ]
+        }
+      },
+      "file": "js/enemy_manager.js",
+      "imports": {
+        "./enemy.js": [
+          "Enemy"
+        ],
+        "./path.js": [
+          "PathManager"
+        ]
+      }
+    },
+    "tower": {
+      "exports": {
+        "Tower": {
+          "constructor": [
+            "x",
+            "y",
+            "type"
+          ],
+          "methods": [
+            "update(dt, enemies)",
+            "draw(ctx)",
+            "getRange()",
+            "getFireRate()",
+            "getDamage()",
+            "getCost()"
+          ],
+          "props": [
+            "x",
+            "y",
+            "type",
+            "range",
+            "fireRate",
+            "damage",
+            "fireTimer",
+            "level"
+          ]
+        }
+      },
+      "file": "js/tower.js",
+      "imports": {}
+    },
+    "tower_manager": {
+      "exports": {
+        "TowerManager": {
+          "methods": [
+            "addTower(x, y, type)",
+            "update(dt, enemies)",
+            "draw(ctx)",
+            "canPlaceAt(x, y)",
+            "getTowers()",
+            "clear()"
+          ],
+          "props": [
+            "towers"
+          ]
+        }
+      },
+      "file": "js/tower_manager.js",
+      "imports": {
+        "./tower.js": [
+          "Tower"
+        ]
+      }
+    },
+    "wave": {
+      "exports": {
+        "WaveManager": {
+          "constructor": [
+            "enemyManager"
+          ],
+          "methods": [
+            "startNextWave()",
+            "update(dt)",
+            "isWaveActive()",
+            "getCurrentWave()",
+            "getNextWave()",
+            "isAllWavesDone()",
+            "getTotalWaves()",
+            "drawInfo(ctx)"
+          ],
+          "props": [
+            "currentWave",
+            "waveTimers",
+            "spawnQueue",
+            "enemyManager"
+          ]
+        }
+      },
+      "file": "js/wave.js",
+      "imports": {
+        "./enemy_manager.js": [
+          "EnemyManager"
+        ]
+      }
+    },
+    "hud": {
+      "exports": {
+        "HUD": {
+          "constructor": [
+            "width",
+            "height"
+          ],
+          "methods": [
+            "draw(ctx, gameState)",
+            "drawTowerPanel(ctx, selectedTower)",
+            "handleTowerSelect(type)"
+          ],
+          "props": [
+            "width",
+            "height"
+          ]
+        }
+      },
+      "file": "js/hud.js",
+      "imports": {}
+    },
+    "game": {
+      "exports": {
+        "Game": {
+          "constructor": [
+            "canvas"
+          ],
+          "methods": [
+            "init()",
+            "start()",
+            "update(dt)",
+            "draw()",
+            "handleClick(x, y)",
+            "gameOver()",
+            "gameWin()",
+            "restart()"
+          ],
+          "props": [
+            "canvas",
+            "ctx",
+            "state",
+            "gold",
+            "lives",
+            "selectedTower",
+            "pathManager",
+            "enemyManager",
+            "towerManager",
+            "waveManager",
+            "hud"
+          ]
+        }
+      },
+      "file": "js/game.js",
+      "imports": {
+        "./input.js": [
+          "InputManager"
+        ],
+        "./path.js": [
+          "PathManager"
+        ],
+        "./enemy_manager.js": [
+          "EnemyManager"
+        ],
+        "./tower_manager.js": [
+          "TowerManager"
+        ],
+        "./wave.js": [
+          "WaveManager"
+        ],
+        "./hud.js": [
+          "HUD"
+        ]
+      }
+    }
+  }
+}
