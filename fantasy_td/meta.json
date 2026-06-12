@@ -1,10 +1,10 @@
 {
   "id": "fantasy_td",
   "title": "Fantasy Tower Defense",
-  "description": "ファンタジー風タワーデフェンスゲーム。4種類のタワーを配置して10ウェーブの敵を防ごう！",
+  "description": "スマホ対応ファンタジータワーディフェンス。4種タワーで10ウェーブの敵を防衛！",
   "engine": "javascript",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "created_at": "2026-06-12T16:25:04.694880",
-  "updated_at": "2026-06-12T16:25:04.697991",
+  "updated_at": "2026-06-12T18:50:21.362273",
   "thumbnail": ""
 }

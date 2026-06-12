@@ -1,3 +1,7 @@
+// 敵画像をロード
+const enemyImage = new Image();
+enemyImage.src = 'assets/enemy.png';
+
 export class Enemy {
     constructor(path, hp, speed, reward, type) {
         this.path = path;
@@ -63,28 +67,33 @@ export class Enemy {
 
         const hpRatio = this.hp / this.maxHp;
 
-        // 種類のカラー
-        const colors = {
-            slime: '#4CAF50',
-            golem: '#795548',
-            wizard: '#9C27B0',
-            boss: '#F44336'
-        };
-        const color = colors[this.type] || '#4CAF50';
+        // 敵タイプに応じたサイズ
+        const size = this.type === 'boss' ? 36 : (this.type === 'golem' ? 28 : 20);
 
-        // 本体
-        const size = this.type === 'boss' ? 18 : (this.type === 'golem' ? 14 : 10);
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
-        ctx.fill();
+        // 敵画像を描画
+        if (enemyImage.complete) {
+            ctx.drawImage(enemyImage, this.x - size / 2, this.y - size / 2, size, size);
+        } else {
+            // 画像がまだ読み込み中の場合は円を描画
+            const colors = {
+                slime: '#4CAF50',
+                golem: '#795548',
+                wizard: '#9C27B0',
+                boss: '#F44336'
+            };
+            const color = colors[this.type] || '#4CAF50';
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, size / 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
 
         // スロー効果の視覚
         if (this.slowTimer > 0) {
             ctx.strokeStyle = '#00BCD4';
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(this.x, this.y, size + 4, 0, Math.PI * 2);
+            ctx.arc(this.x, this.y, size / 2 + 4, 0, Math.PI * 2);
             ctx.stroke();
         }
 
@@ -92,17 +101,17 @@ export class Enemy {
         if (this.poisonTimer > 0) {
             ctx.fillStyle = '#8BC34A';
             ctx.beginPath();
-            ctx.arc(this.x, this.y, size + 2, 0, Math.PI * 2);
+            ctx.arc(this.x, this.y, size / 2 + 2, 0, Math.PI * 2);
             ctx.globalAlpha = 0.3;
             ctx.fill();
             ctx.globalAlpha = 1.0;
         }
 
         // HPバー
-        const barWidth = size * 2.5;
+        const barWidth = size * 1.2;
         const barHeight = 4;
         const barX = this.x - barWidth / 2;
-        const barY = this.y - size - 8;
+        const barY = this.y - size / 2 - 8;
         ctx.fillStyle = '#333';
         ctx.fillRect(barX, barY, barWidth, barHeight);
         ctx.fillStyle = hpRatio > 0.5 ? '#4CAF50' : (hpRatio > 0.25 ? '#FF9800' : '#F44336');
