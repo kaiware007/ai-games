@@ -1,0 +1,10 @@
+{
+  "id": "block_breaker_3d",
+  "title": "3Dブロック崩し",
+  "description": "3D物理エンジンを使ったブロック崩しゲーム。cannon-esで正確な衝突判定を実現。",
+  "engine": "javascript",
+  "version": "0.1.0",
+  "created_at": "2026-06-17T19:41:06.115625",
+  "updated_at": "2026-06-17T19:41:06.115643",
+  "thumbnail": ""
+}
