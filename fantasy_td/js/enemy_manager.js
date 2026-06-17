@@ -1,4 +1,4 @@
-import { Enemy } from './enemy.js?v=1781257821';
+import { Enemy } from './enemy.js?v=1781692668';
 
 export class EnemyManager {
     constructor(path) {
