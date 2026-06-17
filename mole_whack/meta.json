@@ -1,0 +1,10 @@
+{
+  "id": "mole_whack",
+  "title": "モグラ叩き",
+  "description": "シンプルなモグラ叩きゲーム。素早くモグラを叩いてスコアを稼ごう！",
+  "engine": "javascript",
+  "version": "0.1.0",
+  "created_at": "2026-06-17T19:43:44.636368",
+  "updated_at": "2026-06-17T19:43:44.636402",
+  "thumbnail": ""
+}
