@@ -1,0 +1,10 @@
+{
+  "id": "endless_shooter",
+  "title": "エンドレス縦スクロールシューティング",
+  "description": "縦スクロールシューティング。サイドウェーブや多彩な弾幕で敵を撃破。",
+  "engine": "javascript",
+  "version": "0.1.0",
+  "created_at": "2026-06-17T19:41:58.560838",
+  "updated_at": "2026-06-17T19:41:58.560857",
+  "thumbnail": ""
+}
