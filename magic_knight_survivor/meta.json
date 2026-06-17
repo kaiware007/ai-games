@@ -1,0 +1,10 @@
+{
+  "id": "magic_knight_survivor",
+  "title": "マジックナイト・サバイバー",
+  "description": "魔法騎士でサバイバル。武器ごとの攻撃力・クールタイム・レベルアップ成長要素搭載。",
+  "engine": "javascript",
+  "version": "0.1.0",
+  "created_at": "2026-06-17T19:42:50.795635",
+  "updated_at": "2026-06-17T19:42:50.795672",
+  "thumbnail": ""
+}
